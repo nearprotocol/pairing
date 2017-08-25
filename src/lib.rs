@@ -13,8 +13,11 @@
 #![cfg_attr(feature = "clippy", allow(unreadable_literal))]
 #![cfg_attr(feature = "clippy", allow(new_without_default_derive))]
 
-// Force public structures to implement Debug
-#![deny(missing_debug_implementations)]
+// The compiler provides `test` (on nightly) for benchmarking tools, but
+// it's hidden behind a feature flag. Enable it if we're testing.
+#![cfg_attr(test, feature(test))]
+#[cfg(test)]
+extern crate test;
 
 extern crate rand;
 extern crate byteorder;

@@ -55,6 +55,11 @@ impl Fq2 {
 
         t1
     }
+
+    pub fn hash(k: &[u8], nonce: &[u8]) -> Self {
+        let half = nonce.len() / 2;
+        Fq2 { c0: Fq::hash(k, &nonce[ .. half]), c1: Fq::hash(k, &nonce[half ..]) }
+    }
 }
 
 impl Rand for Fq2 {

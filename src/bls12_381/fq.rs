@@ -1,6 +1,13 @@
-use ::{Field, PrimeField, SqrtField, PrimeFieldRepr, PrimeFieldDecodingError};
+extern crate blake2;
+
 use std::cmp::Ordering;
+
+use self::blake2::{Blake2b, Digest};
+use byteorder::{BigEndian, ByteOrder, NativeEndian};
+
+use ::{Field, PrimeField, SqrtField, PrimeFieldRepr, PrimeFieldDecodingError};
 use super::fq2::Fq2;
+
 
 // q = 4002409555221667393417789825735904156556882819939007885332058136124031650490837864442687629129015664037894272559787
 const MODULUS: FqRepr = FqRepr([0xb9feffffffffaaab, 0x1eabfffeb153ffff, 0x6730d2a0f6b0f624, 0x64774b84f38512bf, 0x4b1ba7b6434bacd7, 0x1a0111ea397fe69a]);
@@ -804,6 +811,30 @@ impl Fq {
         (self.0).0[5] = r11;
         self.reduce();
     }
+
+    /// Hash into the field.
+    /// Hashing consists of BLAKE2b in counter mode, truncated and shaved bits,
+    /// then interpreted it (in big endian) as Fr/Fq elements.
+    pub fn hash(k: &[u8], nonce: &[u8]) -> Self {
+        let mut repr: [u64; 6] = [0; 6];
+        let mut count : u32 = 0;
+        let mut count_u8 : [u8; 4] = [0; 4];
+
+        loop {
+            // increment the counter
+            count += 1;
+            NativeEndian::write_u32(&mut count_u8, count);
+            // hash in counter mode: append to the nonce a counter
+            let mut hasher = Blake2b::new_keyed(k);
+            hasher.input(nonce);
+            hasher.input(&count_u8);
+            // truncate and shave the hash result
+            BigEndian::read_u64_into(&hasher.result().as_slice()[.. 48], &mut repr);
+            let mut e = Fq(FqRepr(repr));
+            e.0.divn(REPR_SHAVE_BITS);
+            if e.is_valid() { return e }
+        }
+    }
 }
 
 impl SqrtField for Fq {
@@ -841,6 +872,35 @@ impl SqrtField for Fq {
     }
 }
 
+#[cfg(test)]
+use rand::{SeedableRng, XorShiftRng, Rand, Rng};
+
+#[test]
+fn test_hash() {
+    // check that an arbitrary image of the hash is in the field.
+    assert!(Fq::hash(&[0x42; 32], &[0x42; 32]).is_valid());
+
+    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut lsb_ones : i32 = 0;
+    for _ in 0 .. 1000 {
+        let nonce = rng.gen::<[u8; 32]>();
+        let seed = rng.gen::<[u8; 32]>();
+        let e = Fq::hash(&seed, &nonce);
+        // check that the hash image is in the field
+        assert!(e.is_valid());
+        // count how many less-significant bits are set in each limb
+        lsb_ones += e.into_repr().as_ref().iter().map(|x| {
+            if x % 2 == 0 {0i32} else {1i32}
+        }).sum::<i32>();
+    }
+    // lsb_ones should a uniformly random variable 100*X
+    // where X is a coin flip
+    let mean = 1000 * 6 / 2;
+    // sqrt(1000 * 6 * .25) = 38.72983346207417
+    let variance = 40;
+    assert!((lsb_ones - mean).abs() < variance);
+
+}
 
 #[test]
 fn test_b_coeff() {
@@ -896,8 +956,6 @@ fn test_neg_one() {
     assert_eq!(NEGATIVE_ONE, o);
 }
 
-#[cfg(test)]
-use rand::{SeedableRng, XorShiftRng, Rand};
 
 #[test]
 fn test_fq_repr_ordering() {
