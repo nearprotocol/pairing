@@ -216,6 +216,12 @@ pub trait CurveAffine: Copy +
     fn into_uncompressed(&self) -> Self::Uncompressed {
         <Self::Uncompressed as EncodedPoint>::from_affine(*self)
     }
+
+    /// Hash into the curve.
+    /// Implement "Indifferentiable Hashing to Barreto–Naehrig Curves" from Foque-Tibouchi.
+    /// <https://www.di.ens.fr/~fouque/pub/latincrypt12.pdf>
+    /// Cases where t == 0 and t^2 + b + 1 == 0 are explicitly handled.
+    fn hash(&[u8], &[u8]) -> Self;
 }
 
 /// An encoded elliptic curve point, which should essentially wrap a `[u8; N]`.

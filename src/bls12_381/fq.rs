@@ -28,6 +28,16 @@ const R2: FqRepr = FqRepr([0xf4df1f341c341746, 0xa76e6a609d104f1, 0x8de5476c4c95
 // INV = -(q^{-1} mod 2^64) mod 2^64
 const INV: u64 = 0x89f3fffcfffcfffd;
 
+// SWENC_CONST0 = sqrt(-3) mod q =
+// 1586958781458431025242759403266842894121773480562120986020912974854563298150952611241517463240701
+// used to help find a Fq-rational point in the conic described by the Shallue–van de Woestijne encoding.
+pub const SWENC_CONST0: Fq = Fq(FqRepr([0x1dec6c36f3181f22, 0xb4b9bb641054b457, 0x25695a2be9415286, 0x982b6cbf66c749bc, 0x7d58e1ae1feb7873, 0x62c96300937c0b9]));
+
+// SWENC_CONST1 = (SWENC_CONST0 - 1) / 2 mod q =
+// 793479390729215512621379701633421447060886740281060493010456487427281649075476305620758731620350
+// used to speed up the computation of the abscissa x_1(t).
+pub const SWENC_CONST1: Fq = Fq(FqRepr([0x30f1361b798a64e8, 0xf3b8ddab7ece5a2a, 0x16a8ca3ac61577f7, 0xc26a2ff874fd029b, 0x3636b76660701c6e, 0x51ba4ab241b6160]));
+
 // GENERATOR = 2 (multiplicative generator of q-1 order, that is also quadratic nonresidue)
 const GENERATOR: FqRepr = FqRepr([0x321300000006554f, 0xb93c0018d6c40005, 0x57605e0db0ddbb51, 0x8b256521ed1f9bcb, 0x6cf28d7901622c03, 0x11ebab9dbb81e28c]);
 
@@ -899,12 +909,31 @@ fn test_hash() {
     // sqrt(1000 * 6 * .25) = 38.72983346207417
     let variance = 40;
     assert!((lsb_ones - mean).abs() < variance);
-
 }
 
 #[test]
 fn test_b_coeff() {
     assert_eq!(Fq::from_repr(FqRepr::from(4)).unwrap(), B_COEFF);
+}
+
+#[test]
+fn test_swenc_consts() {
+    // c0 = sqrt(-3)
+    let mut c0 = Fq::from_repr(FqRepr::from(3)).unwrap();
+    c0.negate();
+    let c0 = c0.sqrt().unwrap();
+    assert_eq!(c0, SWENC_CONST0);
+
+    // c2 = (sqrt(-3) - 1) / 2
+    let mut expected = SWENC_CONST1;
+    expected.add_assign(&SWENC_CONST1);
+    expected.add_assign(&Fq::one());
+    assert_eq!(SWENC_CONST0, expected);
+
+    // make sure b+1 is not a quadratic residue
+    let mut bp1 = Fq::one();
+    bp1.add_assign(&B_COEFF);
+    assert_eq!(bp1.legendre(), ::LegendreSymbol::QuadraticNonResidue);
 }
 
 #[test]

@@ -122,6 +122,14 @@ macro_rules! curve_impl {
                 })
             }
 
+            fn y2_from_x(x: $basefield) -> $basefield {
+                let mut y2 = x.clone();
+                y2.square();
+                y2.mul_assign(&x);
+                y2.add_assign(&Self::get_coeff_b());
+                y2
+            }
+
             fn is_on_curve(&self) -> bool {
                 if self.is_zero() {
                     true
@@ -130,17 +138,60 @@ macro_rules! curve_impl {
                     let mut y2 = self.y;
                     y2.square();
 
-                    let mut x3b = self.x;
-                    x3b.square();
-                    x3b.mul_assign(&self.x);
-                    x3b.add_assign(&Self::get_coeff_b());
-
-                    y2 == x3b
+                    y2 == $affine::y2_from_x(self.x)
                 }
             }
 
             fn is_in_correct_subgroup_assuming_on_curve(&self) -> bool {
                 self.mul($scalarfield::char()).is_zero()
+            }
+
+            fn sw_encode(mut t: $basefield) -> $projective {
+                use ::LegendreSymbol::*;
+
+                // handle the case t == 0
+                if t.is_zero() { t = Self::get_swenc_const0() };
+
+                // w = (t^2 + b + 1)^(-1) * sqrt(-3) * t
+                let mut w = t;
+                w.square();
+                w.add_assign(&Self::get_coeff_b());
+                w.add_assign(&$basefield::one());
+                // handle the case t^2 + b + 1 == 0
+                if w.is_zero() { return $projective::zero() };
+                w = w.inverse().unwrap();
+                w.mul_assign(&Self::get_swenc_const0());
+                w.mul_assign(&t);
+
+                // x1 = - wt  + (sqrt(-3) - 1) / 2
+                let mut x1 = w;
+                x1.mul_assign(&t);
+                x1.negate();
+                x1.add_assign(&Self::get_swenc_const1());
+                let alpha = Self::y2_from_x(x1).legendre();
+
+                // x2 = -1 -x1
+                let mut x2 = x1;
+                x2.negate();
+                x2.sub_assign(&$basefield::one());
+                let beta = Self::y2_from_x(x2).legendre();
+
+                // x3 = 1/w^2 + 1
+                let mut x3 = w;
+                x3.square();
+                x3 = x3.inverse().unwrap();
+                x3.add_assign(&$basefield::one());
+
+                let x = match (alpha, beta) {
+                    (QuadraticResidue, _) => x1,
+                    (_, QuadraticResidue) => x2,
+                    _ => x3
+                };
+
+                let mut y = Self::y2_from_x(x).sqrt().unwrap();
+                if t.legendre() == QuadraticNonResidue { y.negate() }
+                let p = Self {x: x, y: y, infinity: false};
+                p.scale_by_cofactor()
             }
         }
 
@@ -194,6 +245,26 @@ macro_rules! curve_impl {
                 (*self).into()
             }
 
+            fn hash(seed: &[u8], _nonce: &[u8]) -> Self {
+                // The construction of Foque et al. requires us to construct two
+                // "random oracles" in the field, encode their image with `sw_encode`,
+                // and finally add them.
+                // This is obtained simply by prepending to the nonce ofFq::hash 0x00 and 0xff respectively.
+                // Note: the nonce is assumed to be at most 32 bytes, any extra data will be discarded.
+                let len = cmp::min(32, _nonce.len());
+                let nonce = &mut [0u8; 33];
+                nonce[.. len].copy_from_slice(&_nonce[.. len]);
+
+                // nonce[32] = 0x00;
+                let t1 = Self::Base::hash(seed, nonce);
+                let t1 = Self::sw_encode(t1);
+
+                nonce[32] = 0xff;
+                let t2 = Self::Base::hash(seed, nonce);
+                let mut t2 = Self::sw_encode(t2);
+                t2.add_assign(&t1);
+                t2.into_affine()
+            }
         }
 
         impl Rand for $projective {
@@ -617,12 +688,41 @@ macro_rules! curve_impl {
                 }
             }
         }
+
+        #[cfg(test)]
+        use rand::{SeedableRng, XorShiftRng};
+
+        #[test]
+        fn test_hash() {
+            let seed = [0xde, 0xad, 0xbe, 0xef, 0xde, 0xad, 0xbe, 0xef];
+            let nonce = [0xba, 0xbe, 0xba, 0xbe, 0xba, 0xbe, 0xba, 0xbe];
+            let p = $affine::hash(&seed, &nonce);
+            assert!(!p.is_zero());
+            assert!(p.is_on_curve());
+            assert!(p.is_in_correct_subgroup_assuming_on_curve());
+        }
+
+        #[test]
+        fn test_sw_encode() {
+            let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+
+            for _ in 0 .. 20 {
+                let t = $basefield::rand(&mut rng);
+                let p = $affine::sw_encode(t).into_affine();
+                assert!(p.is_on_curve());
+                assert!(p.is_in_correct_subgroup_assuming_on_curve());
+                assert!(!p.is_zero());
+            }
+
+            let p = $affine::sw_encode($basefield::zero()).into_affine();
+            assert!(p.is_in_correct_subgroup_assuming_on_curve());
+        }
     }
 }
 
 pub mod g1 {
     use rand::{Rand, Rng};
-    use std::fmt;
+    use std::{fmt, cmp};
     use super::g2::G2Affine;
     use super::super::{Bls12, Fq, Fr, FrRepr, FqRepr, Fq12};
     use ::{CurveProjective, CurveAffine, PrimeField, SqrtField, PrimeFieldRepr, Field, BitIterator, EncodedPoint, GroupDecodingError, Engine};
@@ -860,6 +960,14 @@ pub mod g1 {
             super::super::fq::B_COEFF
         }
 
+        fn get_swenc_const0() -> Fq {
+            super::super::fq::SWENC_CONST0
+        }
+
+        fn get_swenc_const1() -> Fq {
+            super::super::fq::SWENC_CONST1
+        }
+
         fn perform_pairing(&self, other: &G2Affine) -> Fq12 {
             super::super::Bls12::pairing(*self, *other)
         }
@@ -1084,7 +1192,7 @@ pub mod g1 {
 
 pub mod g2 {
     use rand::{Rand, Rng};
-    use std::fmt;
+    use std::{fmt, cmp};
     use super::super::{Bls12, Fq2, Fr, Fq, FrRepr, FqRepr, Fq12};
     use super::g1::G1Affine;
     use ::{CurveProjective, CurveAffine, PrimeField, SqrtField, PrimeFieldRepr, Field, BitIterator, EncodedPoint, GroupDecodingError, Engine};
@@ -1352,6 +1460,20 @@ pub mod g2 {
             self.mul_bits(cofactor)
         }
 
+        fn get_swenc_const0() -> Fq2 {
+            Fq2 {
+                c0: super::super::fq::SWENC_CONST0,
+                c1: Fq::zero()
+            }
+        }
+
+        fn get_swenc_const1() -> Fq2 {
+            Fq2 {
+                c0: super::super::fq::SWENC_CONST1,
+                c1: Fq::zero()
+            }
+        }
+
         fn perform_pairing(&self, other: &G1Affine) -> Fq12 {
             super::super::Bls12::pairing(*other, *self)
         }
@@ -1566,6 +1688,7 @@ pub mod g2 {
     fn g2_curve_tests() {
         ::tests::curve::curve_tests::<G2>();
     }
+
 }
 
 pub use self::g1::*;
