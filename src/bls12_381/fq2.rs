@@ -1,3 +1,5 @@
+use blake2::{Blake2b, Digest};
+
 use rand::{Rand, Rng};
 use {Field, SqrtField};
 use super::fq::{FROBENIUS_COEFF_FQ2_C1, Fq, NEGATIVE_ONE};
@@ -53,6 +55,19 @@ impl Fq2 {
         t1.add_assign(&t0);
 
         t1
+    }
+
+    pub fn parity(&self) -> bool {
+        self.c0.parity()
+    }
+
+    pub(crate) fn hash(hasher: Blake2b) -> Self {
+        let mut hasher_c0 = hasher.clone();
+        let mut hasher_c1 = hasher.clone();
+        hasher_c0.input("_c0".as_bytes());
+        hasher_c1.input("_c1".as_bytes());
+
+        Fq2 { c0: Fq::hash(hasher_c0), c1: Fq::hash(hasher_c1) }
     }
 }
 

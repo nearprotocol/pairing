@@ -10,6 +10,15 @@ macro_rules! curve_impl {
         $compressed:ident,
         $pairing:ident
     ) => {
+
+        fn y2_from_x(x: $basefield) -> $basefield {
+            let mut y2 = x.clone();
+            y2.square();
+            y2.mul_assign(&x);
+            y2.add_assign(&get_coeff_b());
+            y2
+        }
+
         #[derive(Copy, Clone, PartialEq, Eq, Debug)]
         pub struct $affine {
             pub(crate) x: $basefield,
@@ -84,6 +93,28 @@ macro_rules! curve_impl {
             }
         }
 
+        impl $projective {
+            fn mul_bits<S: AsRef<[u64]>>(&self, bits: BitIterator<S>) -> Self {
+                let mut res = Self::zero();
+                let mut found_one = false;
+
+                for i in bits
+                {
+                    if found_one {
+                        res.double();
+                    } else {
+                        found_one = i;
+                    }
+
+                    if i {
+                        res.add_assign(self);
+                    }
+                }
+
+                res
+            }
+        }
+
         impl $affine {
             fn mul_bits<S: AsRef<[u64]>>(&self, bits: BitIterator<S>) -> $projective {
                 let mut res = $projective::zero();
@@ -101,10 +132,7 @@ macro_rules! curve_impl {
             /// largest y-coordinate be selected.
             fn get_point_from_x(x: $basefield, greatest: bool) -> Option<$affine> {
                 // Compute x^3 + b
-                let mut x3b = x;
-                x3b.square();
-                x3b.mul_assign(&x);
-                x3b.add_assign(&$affine::get_coeff_b());
+                let x3b = y2_from_x(x);
 
                 x3b.sqrt().map(|y| {
                     let mut negy = y;
@@ -130,17 +158,55 @@ macro_rules! curve_impl {
                     let mut y2 = self.y;
                     y2.square();
 
-                    let mut x3b = self.x;
-                    x3b.square();
-                    x3b.mul_assign(&self.x);
-                    x3b.add_assign(&Self::get_coeff_b());
-
-                    y2 == x3b
+                    y2 == y2_from_x(self.x)
                 }
             }
 
             fn is_in_correct_subgroup_assuming_on_curve(&self) -> bool {
                 self.mul($scalarfield::char()).is_zero()
+            }
+
+            fn sw_encode(t: $basefield) -> Self {
+                // handle the case t == 0
+                if t.is_zero() { return Self::zero() };
+
+                // w = (t^2 + b + 1)^(-1) * sqrt(-3) * t
+                let mut w = t;
+                w.square();
+                w.add_assign(&get_coeff_b());
+                w.add_assign(&$basefield::one());
+                // handle the case t^2 + b + 1 == 0
+                if w.is_zero() { return Self::one() };
+                w = w.inverse().unwrap();
+                w.mul_assign(&Self::get_swenc_const0());
+                w.mul_assign(&t);
+
+                // We choose the corresponding y-coordinate with the same parity as t.
+                let parity = t.parity();
+
+                // x1 = - wt  + (sqrt(-3) - 1) / 2
+                let mut x1 = w;
+                x1.mul_assign(&t);
+                x1.negate();
+                x1.add_assign(&Self::get_swenc_const1());
+                if let Some(p) = Self::get_point_from_x(x1, parity) {
+                    return p
+                }
+
+                // x2 = -1 -x1
+                let mut x2 = x1;
+                x2.negate();
+                x2.sub_assign(&$basefield::one());
+                if let Some(p) = Self::get_point_from_x(x2, parity) {
+                    return p
+                }
+
+                // x3 = 1/w^2 + 1
+                let mut x3 = w;
+                x3.square();
+                x3 = x3.inverse().unwrap();
+                x3.add_assign(&$basefield::one());
+                Self::get_point_from_x(x3, parity).unwrap()
             }
         }
 
@@ -194,6 +260,34 @@ macro_rules! curve_impl {
                 (*self).into()
             }
 
+            fn hash(msg: &[u8]) -> Self {
+                // the key must be of at least 128 bits.
+                assert!(msg.len() >= 16);
+
+                // The construction of Foque et al. requires us to construct two
+                // "random oracles" in the field, encode their image with `sw_encode`,
+                // and finally add them.
+                // We construct them appending to the message the string
+                // $name_$oracle
+                // For instance, the first oracle in group G1 appends: "G1_0"
+                let mut hasher = Blake2b::new();
+                hasher.input(msg);
+                hasher.input($name.as_bytes());
+                hasher.input("_0".as_bytes());
+                let t1 = Self::Base::hash(hasher);
+                let t1 = Self::sw_encode(t1);
+
+                let mut hasher = Blake2b::new();
+                hasher.input(msg);
+                hasher.input($name.as_bytes());
+                hasher.input("_1".as_bytes());
+                let t2 = Self::Base::hash(hasher);
+                let t2 = Self::sw_encode(t2);
+
+                let mut res = t2.into_projective();
+                res.add_assign_mixed(&t1);
+                res.into_affine().scale_by_cofactor().into_affine()
+            }
         }
 
         impl Rand for $projective {
@@ -532,24 +626,8 @@ macro_rules! curve_impl {
             }
 
             fn mul_assign<S: Into<<Self::Scalar as PrimeField>::Repr>>(&mut self, other: S) {
-                let mut res = Self::zero();
-
-                let mut found_one = false;
-
-                for i in BitIterator::new(other.into())
-                {
-                    if found_one {
-                        res.double();
-                    } else {
-                        found_one = i;
-                    }
-
-                    if i {
-                        res.add_assign(self);
-                    }
-                }
-
-                *self = res;
+                let bits = BitIterator::new(other.into());
+                *self = self.mul_bits(bits)
             }
 
             fn into_affine(&self) -> $affine {
@@ -617,12 +695,42 @@ macro_rules! curve_impl {
                 }
             }
         }
+
+        #[cfg(test)]
+        use rand::{SeedableRng, XorShiftRng};
+
+        #[test]
+        fn test_hash() {
+            let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+
+            let seed : [u8; 32] = rng.gen();
+            let p = $affine::hash(&seed);
+            assert!(!p.is_zero());
+            assert!(p.is_on_curve());
+            assert!(p.is_in_correct_subgroup_assuming_on_curve());
+        }
+
+        #[test]
+        fn test_sw_encode() {
+            let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+
+            for _ in 0 .. 20 {
+                let t = $basefield::rand(&mut rng);
+                let p = $affine::sw_encode(t);
+                assert!(p.is_on_curve());
+                assert!(!p.is_zero());
+            }
+
+            let p = $affine::sw_encode($basefield::zero());
+            assert!(p.is_on_curve());
+        }
     }
 }
 
 pub mod g1 {
+    use blake2::{Blake2b, Digest};
     use rand::{Rand, Rng};
-    use std::fmt;
+    use std::{fmt};
     use super::g2::G2Affine;
     use super::super::{Bls12, Fq, Fq12, FqRepr, Fr, FrRepr};
     use {BitIterator, CurveAffine, CurveProjective, EncodedPoint, Engine, Field,
@@ -639,6 +747,10 @@ pub mod g1 {
         G1Compressed,
         G2Affine
     );
+
+    fn get_coeff_b() -> Fq {
+        super::super::fq::B_COEFF
+    }
 
     #[derive(Copy, Clone)]
     pub struct G1Uncompressed([u8; 96]);
@@ -866,6 +978,14 @@ pub mod g1 {
     }
 
     impl G1Affine {
+        fn get_swenc_const0() -> Fq {
+            super::super::fq::SWENC_CONST0
+        }
+
+        fn get_swenc_const1() -> Fq {
+            super::super::fq::SWENC_CONST1
+        }
+
         fn scale_by_cofactor(&self) -> G1 {
             // G1 cofactor = (x - 1)^2 / 3  = 76329603384216526031706109802092473003
             let cofactor = BitIterator::new([0x8c00aaab0000aaab, 0x396c8c005555e156]);
@@ -878,10 +998,6 @@ pub mod g1 {
                 y: super::super::fq::G1_GENERATOR_Y,
                 infinity: false,
             }
-        }
-
-        fn get_coeff_b() -> Fq {
-            super::super::fq::B_COEFF
         }
 
         fn perform_pairing(&self, other: &G2Affine) -> Fq12 {
@@ -943,7 +1059,7 @@ pub mod g1 {
             let mut rhs = x;
             rhs.square();
             rhs.mul_assign(&x);
-            rhs.add_assign(&G1Affine::get_coeff_b());
+            rhs.add_assign(&get_coeff_b());
 
             if let Some(y) = rhs.sqrt() {
                 let yrepr = y.into_repr();
@@ -1266,9 +1382,10 @@ pub mod g1 {
 }
 
 pub mod g2 {
+    use blake2::{Blake2b, Digest};
     use rand::{Rand, Rng};
-    use std::fmt;
-    use super::super::{Bls12, Fq, Fq12, Fq2, FqRepr, Fr, FrRepr};
+    use std::{fmt};
+    use super::super::{Bls12, Fq2, Fr, Fq, FrRepr, FqRepr, Fq12};
     use super::g1::G1Affine;
     use {BitIterator, CurveAffine, CurveProjective, EncodedPoint, Engine, Field,
          GroupDecodingError, PrimeField, PrimeFieldRepr, SqrtField};
@@ -1284,6 +1401,14 @@ pub mod g2 {
         G2Compressed,
         G1Affine
     );
+
+    fn get_coeff_b() -> Fq2 {
+        Fq2 {
+            c0: super::super::fq::B_COEFF,
+            c1: super::super::fq::B_COEFF,
+        }
+    }
+
 
     #[derive(Copy, Clone)]
     pub struct G2Uncompressed([u8; 192]);
@@ -1536,24 +1661,17 @@ pub mod g2 {
     }
 
     impl G2Affine {
-        fn get_generator() -> Self {
-            G2Affine {
-                x: Fq2 {
-                    c0: super::super::fq::G2_GENERATOR_X_C0,
-                    c1: super::super::fq::G2_GENERATOR_X_C1,
-                },
-                y: Fq2 {
-                    c0: super::super::fq::G2_GENERATOR_Y_C0,
-                    c1: super::super::fq::G2_GENERATOR_Y_C1,
-                },
-                infinity: false,
+        fn get_swenc_const0() -> Fq2 {
+            Fq2 {
+                c0: super::super::fq::SWENC_CONST0,
+                c1: Fq::zero()
             }
         }
 
-        fn get_coeff_b() -> Fq2 {
+        fn get_swenc_const1() -> Fq2 {
             Fq2 {
-                c0: super::super::fq::B_COEFF,
-                c1: super::super::fq::B_COEFF,
+                c0: super::super::fq::SWENC_CONST1,
+                c1: Fq::zero()
             }
         }
 
@@ -1571,6 +1689,20 @@ pub mod g2 {
                 0x5d543a95414e7f1,
             ]);
             self.mul_bits(cofactor)
+        }
+
+        fn get_generator() -> Self {
+            G2Affine {
+                x: Fq2 {
+                    c0: super::super::fq::G2_GENERATOR_X_C0,
+                    c1: super::super::fq::G2_GENERATOR_X_C1,
+                },
+                y: Fq2 {
+                    c0: super::super::fq::G2_GENERATOR_Y_C0,
+                    c1: super::super::fq::G2_GENERATOR_Y_C1,
+                },
+                infinity: false,
+            }
         }
 
         fn perform_pairing(&self, other: &G1Affine) -> Fq12 {
@@ -1625,7 +1757,7 @@ pub mod g2 {
             let mut rhs = x;
             rhs.square();
             rhs.mul_assign(&x);
-            rhs.add_assign(&G2Affine::get_coeff_b());
+            rhs.add_assign(&get_coeff_b());
 
             if let Some(y) = rhs.sqrt() {
                 let mut negy = y;
@@ -2016,6 +2148,7 @@ pub mod g2 {
     fn g2_curve_tests() {
         ::tests::curve::curve_tests::<G2>();
     }
+
 }
 
 pub use self::g1::*;

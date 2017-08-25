@@ -1,6 +1,11 @@
-use {Field, PrimeField, PrimeFieldDecodingError, PrimeFieldRepr, SqrtField};
+use ::{Field, PrimeField, SqrtField, PrimeFieldRepr, PrimeFieldDecodingError};
+
 use std::cmp::Ordering;
+use blake2::{Blake2b, Digest};
+use byteorder::{BigEndian, ByteOrder, NativeEndian};
+
 use super::fq2::Fq2;
+
 
 // q = 4002409555221667393417789825735904156556882819939007885332058136124031650490837864442687629129015664037894272559787
 const MODULUS: FqRepr = FqRepr([
@@ -41,6 +46,16 @@ const R2: FqRepr = FqRepr([
 
 // INV = -(q^{-1} mod 2^64) mod 2^64
 const INV: u64 = 0x89f3fffcfffcfffd;
+
+// SWENC_CONST0 = sqrt(-3) mod q =
+// 1586958781458431025242759403266842894121773480562120986020912974854563298150952611241517463240701
+// used to help find a Fq-rational point in the conic described by the Shallue–van de Woestijne encoding.
+pub const SWENC_CONST0: Fq = Fq(FqRepr([0x1dec6c36f3181f22, 0xb4b9bb641054b457, 0x25695a2be9415286, 0x982b6cbf66c749bc, 0x7d58e1ae1feb7873, 0x62c96300937c0b9]));
+
+// SWENC_CONST1 = (SWENC_CONST0 - 1) / 2 mod q =
+// 793479390729215512621379701633421447060886740281060493010456487427281649075476305620758731620350
+// used to speed up the computation of the abscissa x_1(t).
+pub const SWENC_CONST1: Fq = Fq(FqRepr([0x30f1361b798a64e8, 0xf3b8ddab7ece5a2a, 0x16a8ca3ac61577f7, 0xc26a2ff874fd029b, 0x3636b76660701c6e, 0x51ba4ab241b6160]));
 
 // GENERATOR = 2 (multiplicative generator of q-1 order, that is also quadratic nonresidue)
 const GENERATOR: FqRepr = FqRepr([
@@ -1120,6 +1135,32 @@ impl Fq {
         (self.0).0[5] = r11;
         self.reduce();
     }
+
+    pub fn parity(&self) -> bool {
+        (self.0).0[0] % 1 == 1
+    }
+
+    /// Hash into the field.
+    /// Hashing consists of BLAKE2b in counter mode, truncated and shaved bits,
+    /// then interpreted it (in big endian) as Fr/Fq elements.
+    pub(crate) fn hash(mut hasher:  Blake2b) -> Self {
+        let mut repr: [u64; 6] = [0; 6];
+        let mut count : u32 = 0;
+        let mut count_u8 : [u8; 4] = [0; 4];
+
+        // hash in counter mode: append to the nonce a counter
+        loop {
+            // increment the counter
+            count += 1;
+            NativeEndian::write_u32(&mut count_u8, count);
+            hasher.input(&count_u8);
+            // truncate and shave the hash result
+            BigEndian::read_u64_into(&hasher.result().as_slice()[.. 48], &mut repr);
+            let mut e = Fq(FqRepr(repr));
+            e.0.shr(REPR_SHAVE_BITS);
+            if e.is_valid() { return e }
+        }
+    }
 }
 
 impl SqrtField for Fq {
@@ -1170,9 +1211,61 @@ impl SqrtField for Fq {
     }
 }
 
+#[cfg(test)]
+use rand::{SeedableRng, XorShiftRng, Rand, Rng};
+
+#[test]
+fn test_hash() {
+    // check that an arbitrary image of the hash is in the field.
+    let mut hasher = Blake2b::new();
+    hasher.input(&[0x42; 32]);
+    assert!(Fq::hash(hasher).is_valid());
+
+    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut lsb_ones : i32 = 0;
+    for _ in 0 .. 1000 {
+        let seed = rng.gen::<[u8; 32]>();
+        let mut hasher = Blake2b::new();
+        hasher.input(&seed);
+        let e = Fq::hash(hasher);
+        // check that the hash image is in the field
+        assert!(e.is_valid());
+        // count how many less-significant bits are set in each limb
+        lsb_ones += e.into_repr().as_ref().iter().map(|x| {
+            if x % 2 == 0 {0i32} else {1i32}
+        }).sum::<i32>();
+    }
+    // lsb_ones should a uniformly random variable 100*X
+    // where X is a coin flip
+    let mean = 1000 * 6 / 2;
+    // sqrt(1000 * 6 * .25) = 38.72983346207417
+    let variance = 40;
+    assert!((lsb_ones - mean).abs() < variance);
+}
+
 #[test]
 fn test_b_coeff() {
     assert_eq!(Fq::from_repr(FqRepr::from(4)).unwrap(), B_COEFF);
+}
+
+#[test]
+fn test_swenc_consts() {
+    // c0 = sqrt(-3)
+    let mut c0 = Fq::from_repr(FqRepr::from(3)).unwrap();
+    c0.negate();
+    let c0 = c0.sqrt().unwrap();
+    assert_eq!(c0, SWENC_CONST0);
+
+    // c2 = (sqrt(-3) - 1) / 2
+    let mut expected = SWENC_CONST1;
+    expected.add_assign(&SWENC_CONST1);
+    expected.add_assign(&Fq::one());
+    assert_eq!(SWENC_CONST0, expected);
+
+    // make sure b+1 is not a quadratic residue
+    let mut bp1 = Fq::one();
+    bp1.add_assign(&B_COEFF);
+    assert_eq!(bp1.legendre(), ::LegendreSymbol::QuadraticNonResidue);
 }
 
 #[test]
@@ -1893,9 +1986,6 @@ fn test_neg_one() {
 
     assert_eq!(NEGATIVE_ONE, o);
 }
-
-#[cfg(test)]
-use rand::{Rand, SeedableRng, XorShiftRng};
 
 #[test]
 fn test_fq_repr_ordering() {
