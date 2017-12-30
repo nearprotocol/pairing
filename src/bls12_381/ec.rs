@@ -246,10 +246,13 @@ macro_rules! curve_impl {
             }
 
             fn hash(seed: &[u8], _nonce: &[u8]) -> Self {
+                // the key must be of at least 128 bits.
+                assert!(seed.len() >= 16);
+
                 // The construction of Foque et al. requires us to construct two
                 // "random oracles" in the field, encode their image with `sw_encode`,
                 // and finally add them.
-                // This is obtained simply by prepending to the nonce ofFq::hash 0x00 and 0xff respectively.
+                // This is obtained simply by prepending to the nonce of Fq::hash 0x00 and 0xff respectively.
                 // Note: the nonce is assumed to be at most 32 bytes, any extra data will be discarded.
                 let len = cmp::min(32, _nonce.len());
                 let nonce = &mut [0u8; 33];
@@ -694,8 +697,10 @@ macro_rules! curve_impl {
 
         #[test]
         fn test_hash() {
-            let seed = [0xde, 0xad, 0xbe, 0xef, 0xde, 0xad, 0xbe, 0xef];
-            let nonce = [0xba, 0xbe, 0xba, 0xbe, 0xba, 0xbe, 0xba, 0xbe];
+            let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+
+            let seed : [u8; 16] = rng.gen();
+            let nonce : [u8; 16] = rng.gen();
             let p = $affine::hash(&seed, &nonce);
             assert!(!p.is_zero());
             assert!(p.is_on_curve());

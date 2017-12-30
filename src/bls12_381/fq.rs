@@ -826,6 +826,9 @@ impl Fq {
     /// Hashing consists of BLAKE2b in counter mode, truncated and shaved bits,
     /// then interpreted it (in big endian) as Fr/Fq elements.
     pub fn hash(k: &[u8], nonce: &[u8]) -> Self {
+        // the key must be of at least 128 bits.
+        assert!(k.len() >= 16);
+
         let mut repr: [u64; 6] = [0; 6];
         let mut count : u32 = 0;
         let mut count_u8 : [u8; 4] = [0; 4];
