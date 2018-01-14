@@ -27,6 +27,8 @@ impl Rand for Fq12 {
     }
 }
 
+field_operations!(Fq12);
+
 impl Fq12 {
     pub fn conjugate(&mut self)
     {
@@ -101,20 +103,20 @@ impl Field for Fq12
         self.c0.frobenius_map(power);
         self.c1.frobenius_map(power);
 
-        self.c1.c0.mul_assign(&FROBENIUS_COEFF_FQ12_C1[power % 12]);
-        self.c1.c1.mul_assign(&FROBENIUS_COEFF_FQ12_C1[power % 12]);
-        self.c1.c2.mul_assign(&FROBENIUS_COEFF_FQ12_C1[power % 12]);
+        self.c1.c0.mul_assign_ref(&FROBENIUS_COEFF_FQ12_C1[power % 12]);
+        self.c1.c1.mul_assign_ref(&FROBENIUS_COEFF_FQ12_C1[power % 12]);
+        self.c1.c2.mul_assign_ref(&FROBENIUS_COEFF_FQ12_C1[power % 12]);
     }
 
     fn square(&mut self) {
         let mut ab = self.c0;
-        ab.mul_assign(&self.c1);
+        ab.mul_assign_ref(&self.c1);
         let mut c0c1 = self.c0;
         c0c1.add_assign(&self.c1);
         let mut c0 = self.c1;
         c0.mul_by_nonresidue();
         c0.add_assign(&self.c0);
-        c0.mul_assign(&c0c1);
+        c0.mul_assign_ref(&c0c1);
         c0.sub_assign(&ab);
         self.c1 = ab;
         self.c1.add_assign(&ab);
@@ -123,15 +125,15 @@ impl Field for Fq12
         self.c0 = c0;
     }
 
-    fn mul_assign(&mut self, other: &Self) {
+    fn mul_assign_ref(&mut self, other: &Self) {
         let mut aa = self.c0;
-        aa.mul_assign(&other.c0);
+        aa.mul_assign_ref(&other.c0);
         let mut bb = self.c1;
-        bb.mul_assign(&other.c1);
+        bb.mul_assign_ref(&other.c1);
         let mut o = other.c0;
         o.add_assign(&other.c1);
         self.c1.add_assign(&self.c0);
-        self.c1.mul_assign(&o);
+        self.c1.mul_assign_ref(&o);
         self.c1.sub_assign(&aa);
         self.c1.sub_assign(&bb);
         self.c0 = bb;
@@ -152,8 +154,8 @@ impl Field for Fq12
                 c0: t,
                 c1: t
             };
-            tmp.c0.mul_assign(&self.c0);
-            tmp.c1.mul_assign(&self.c1);
+            tmp.c0.mul_assign_ref(&self.c0);
+            tmp.c1.mul_assign_ref(&self.c1);
             tmp.c1.negate();
 
             tmp
@@ -176,7 +178,7 @@ fn test_fq12_mul_by_014() {
         let mut b = a;
 
         a.mul_by_014(&c0, &c1, &c5);
-        b.mul_assign(&Fq12 {
+        b.mul_assign_ref(&Fq12 {
             c0: Fq6 {
                 c0: c0,
                 c1: c1,

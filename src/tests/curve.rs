@@ -77,7 +77,7 @@ fn random_wnaf_tests<G: CurveProjective>() {
                 let g = G::rand(&mut rng);
                 let s = G::Scalar::rand(&mut rng).into_repr();
                 let mut g1 = g;
-                g1.mul_assign(s);
+                g1.mul_assign_ref(s);
 
                 wnaf_table(&mut table, g, w);
                 wnaf_form(&mut wnaf, s, w);
@@ -95,7 +95,7 @@ fn random_wnaf_tests<G: CurveProjective>() {
             let g = G::rand(&mut rng);
             let s = G::Scalar::rand(&mut rng).into_repr();
             let mut g1 = g;
-            g1.mul_assign(s);
+            g1.mul_assign_ref(s);
 
             let g2 = {
                 let mut wnaf = Wnaf::new();
@@ -186,10 +186,10 @@ fn random_negation_tests<G: CurveProjective>() {
         sneg.negate();
 
         let mut t1 = r;
-        t1.mul_assign(s);
+        t1.mul_assign_ref(s);
 
         let mut t2 = r;
-        t2.mul_assign(sneg);
+        t2.mul_assign_ref(sneg);
 
         let mut t3 = t1;
         t3.add_assign(&t2);
@@ -245,11 +245,11 @@ fn random_multiplication_tests<G: CurveProjective>() {
         // s ( a + b )
         let mut tmp1 = a;
         tmp1.add_assign(&b);
-        tmp1.mul_assign(s);
+        tmp1.mul_assign_ref(s);
 
         // sa + sb
-        a.mul_assign(s);
-        b.mul_assign(s);
+        a.mul_assign_ref(s);
+        b.mul_assign_ref(s);
 
         let mut tmp2 = a;
         tmp2.add_assign(&b);

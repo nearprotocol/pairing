@@ -62,19 +62,19 @@ macro_rules! curve_impl {
                 z2.square();
 
                 let mut tmp1 = self.x;
-                tmp1.mul_assign(&z2);
+                tmp1.mul_assign_ref(&z2);
 
                 let mut tmp2 = other.x;
-                tmp2.mul_assign(&z1);
+                tmp2.mul_assign_ref(&z1);
 
                 if tmp1 != tmp2 {
                     return false;
                 }
 
-                z1.mul_assign(&self.z);
-                z2.mul_assign(&other.z);
-                z2.mul_assign(&self.y);
-                z1.mul_assign(&other.y);
+                z1.mul_assign_ref(&self.z);
+                z2.mul_assign_ref(&other.z);
+                z2.mul_assign_ref(&self.y);
+                z1.mul_assign_ref(&other.y);
 
                 if z1 != z2 {
                     return false;
@@ -103,7 +103,7 @@ macro_rules! curve_impl {
                 // Compute x^3 + b
                 let mut x3b = x;
                 x3b.square();
-                x3b.mul_assign(&x);
+                x3b.mul_assign_ref(&x);
                 x3b.add_assign(&$affine::get_coeff_b());
 
                 x3b.sqrt().map(|y| {
@@ -125,7 +125,7 @@ macro_rules! curve_impl {
             fn y2_from_x(x: $basefield) -> $basefield {
                 let mut y2 = x.clone();
                 y2.square();
-                y2.mul_assign(&x);
+                y2.mul_assign_ref(&x);
                 y2.add_assign(&Self::get_coeff_b());
                 y2
             }
@@ -160,12 +160,12 @@ macro_rules! curve_impl {
                 // handle the case t^2 + b + 1 == 0
                 if w.is_zero() { return $projective::zero() };
                 w = w.inverse().unwrap();
-                w.mul_assign(&Self::get_swenc_const0());
-                w.mul_assign(&t);
+                w.mul_assign_ref(&Self::get_swenc_const0());
+                w.mul_assign_ref(&t);
 
                 // x1 = - wt  + (sqrt(-3) - 1) / 2
                 let mut x1 = w;
-                x1.mul_assign(&t);
+                x1.mul_assign_ref(&t);
                 x1.negate();
                 x1.add_assign(&Self::get_swenc_const1());
                 let alpha = Self::y2_from_x(x1).legendre();
@@ -330,7 +330,7 @@ macro_rules! curve_impl {
                           // Ignore normalized elements
                           .filter(|g| !g.is_normalized())
                 {
-                    tmp.mul_assign(&g.z);
+                    tmp.mul_assign_ref(&g.z);
                     prod.push(tmp);
                 }
 
@@ -348,9 +348,9 @@ macro_rules! curve_impl {
                 {
                     // tmp := tmp * g.z; g.z := tmp * s = 1/z
                     let mut newtmp = tmp;
-                    newtmp.mul_assign(&g.z);
+                    newtmp.mul_assign_ref(&g.z);
                     g.z = tmp;
-                    g.z.mul_assign(&s);
+                    g.z.mul_assign_ref(&s);
                     tmp = newtmp;
                 }
 
@@ -360,9 +360,9 @@ macro_rules! curve_impl {
                 {
                     let mut z = g.z; // 1/z
                     z.square(); // 1/z^2
-                    g.x.mul_assign(&z); // x/z^2
-                    z.mul_assign(&g.z); // 1/z^3
-                    g.y.mul_assign(&z); // y/z^3
+                    g.x.mul_assign_ref(&z); // x/z^2
+                    z.mul_assign_ref(&g.z); // 1/z^3
+                    g.y.mul_assign_ref(&z); // y/z^3
                     g.z = $basefield::one(); // z = 1
                 }
             }
@@ -409,7 +409,7 @@ macro_rules! curve_impl {
                 f.square();
 
                 // Z3 = 2*Y1*Z1
-                self.z.mul_assign(&self.y);
+                self.z.mul_assign_ref(&self.y);
                 self.z.double();
 
                 // X3 = F-2*D
@@ -420,7 +420,7 @@ macro_rules! curve_impl {
                 // Y3 = E*(D-X3)-8*C
                 self.y = d;
                 self.y.sub_assign(&self.x);
-                self.y.mul_assign(&e);
+                self.y.mul_assign_ref(&e);
                 c.double();
                 c.double();
                 c.double();
@@ -449,21 +449,21 @@ macro_rules! curve_impl {
 
                 // U1 = X1*Z2Z2
                 let mut u1 = self.x;
-                u1.mul_assign(&z2z2);
+                u1.mul_assign_ref(&z2z2);
 
                 // U2 = X2*Z1Z1
                 let mut u2 = other.x;
-                u2.mul_assign(&z1z1);
+                u2.mul_assign_ref(&z1z1);
 
                 // S1 = Y1*Z2*Z2Z2
                 let mut s1 = self.y;
-                s1.mul_assign(&other.z);
-                s1.mul_assign(&z2z2);
+                s1.mul_assign_ref(&other.z);
+                s1.mul_assign_ref(&z2z2);
 
                 // S2 = Y2*Z1*Z1Z1
                 let mut s2 = other.y;
-                s2.mul_assign(&self.z);
-                s2.mul_assign(&z1z1);
+                s2.mul_assign_ref(&self.z);
+                s2.mul_assign_ref(&z1z1);
 
                 if u1 == u2 && s1 == s2 {
                     // The two points are equal, so we double.
@@ -482,7 +482,7 @@ macro_rules! curve_impl {
 
                     // J = H*I
                     let mut j = h;
-                    j.mul_assign(&i);
+                    j.mul_assign_ref(&i);
 
                     // r = 2*(S2-S1)
                     let mut r = s2;
@@ -491,7 +491,7 @@ macro_rules! curve_impl {
 
                     // V = U1*I
                     let mut v = u1;
-                    v.mul_assign(&i);
+                    v.mul_assign_ref(&i);
 
                     // X3 = r^2 - J - 2*V
                     self.x = r;
@@ -503,8 +503,8 @@ macro_rules! curve_impl {
                     // Y3 = r*(V - X3) - 2*S1*J
                     self.y = v;
                     self.y.sub_assign(&self.x);
-                    self.y.mul_assign(&r);
-                    s1.mul_assign(&j); // S1 = S1 * J * 2
+                    self.y.mul_assign_ref(&r);
+                    s1.mul_assign_ref(&j); // S1 = S1 * J * 2
                     s1.double();
                     self.y.sub_assign(&s1);
 
@@ -513,7 +513,7 @@ macro_rules! curve_impl {
                     self.z.square();
                     self.z.sub_assign(&z1z1);
                     self.z.sub_assign(&z2z2);
-                    self.z.mul_assign(&h);
+                    self.z.mul_assign_ref(&h);
                 }
             }
 
@@ -537,12 +537,12 @@ macro_rules! curve_impl {
 
                 // U2 = X2*Z1Z1
                 let mut u2 = other.x;
-                u2.mul_assign(&z1z1);
+                u2.mul_assign_ref(&z1z1);
 
                 // S2 = Y2*Z1*Z1Z1
                 let mut s2 = other.y;
-                s2.mul_assign(&self.z);
-                s2.mul_assign(&z1z1);
+                s2.mul_assign_ref(&self.z);
+                s2.mul_assign_ref(&z1z1);
 
                 if self.x == u2 && self.y == s2 {
                     // The two points are equal, so we double.
@@ -565,7 +565,7 @@ macro_rules! curve_impl {
 
                     // J = H*I
                     let mut j = h;
-                    j.mul_assign(&i);
+                    j.mul_assign_ref(&i);
 
                     // r = 2*(S2-Y1)
                     let mut r = s2;
@@ -574,7 +574,7 @@ macro_rules! curve_impl {
 
                     // V = X1*I
                     let mut v = self.x;
-                    v.mul_assign(&i);
+                    v.mul_assign_ref(&i);
 
                     // X3 = r^2 - J - 2*V
                     self.x = r;
@@ -584,11 +584,11 @@ macro_rules! curve_impl {
                     self.x.sub_assign(&v);
 
                     // Y3 = r*(V-X3)-2*Y1*J
-                    j.mul_assign(&self.y); // J = 2*Y1*J
+                    j.mul_assign_ref(&self.y); // J = 2*Y1*J
                     j.double();
                     self.y = v;
                     self.y.sub_assign(&self.x);
-                    self.y.mul_assign(&r);
+                    self.y.mul_assign_ref(&r);
                     self.y.sub_assign(&j);
 
                     // Z3 = (Z1+H)^2-Z1Z1-HH
@@ -605,7 +605,7 @@ macro_rules! curve_impl {
                 }
             }
 
-            fn mul_assign<S: Into<<Self::Scalar as PrimeField>::Repr>>(&mut self, other: S) {
+            fn mul_assign_ref<S: Into<<Self::Scalar as PrimeField>::Repr>>(&mut self, other: S) {
                 let mut res = Self::zero();
 
                 let mut found_one = false;
@@ -676,12 +676,12 @@ macro_rules! curve_impl {
 
                     // X/Z^2
                     let mut x = p.x;
-                    x.mul_assign(&zinv_powered);
+                    x.mul_assign_ref(&zinv_powered);
 
                     // Y/Z^3
                     let mut y = p.y;
-                    zinv_powered.mul_assign(&zinv);
-                    y.mul_assign(&zinv_powered);
+                    zinv_powered.mul_assign_ref(&zinv);
+                    y.mul_assign_ref(&zinv_powered);
 
                     $affine {
                         x: x,
@@ -1032,7 +1032,7 @@ pub mod g1 {
             // y^2 = x^3 + b
             let mut rhs = x;
             rhs.square();
-            rhs.mul_assign(&x);
+            rhs.mul_assign_ref(&x);
             rhs.add_assign(&G1Affine::get_coeff_b());
 
             if let Some(y) = rhs.sqrt() {
@@ -1531,7 +1531,7 @@ pub mod g2 {
             // y^2 = x^3 + b
             let mut rhs = x;
             rhs.square();
-            rhs.mul_assign(&x);
+            rhs.mul_assign_ref(&x);
             rhs.add_assign(&G2Affine::get_coeff_b());
 
             if let Some(y) = rhs.sqrt() {

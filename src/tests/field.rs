@@ -77,7 +77,7 @@ pub fn random_field_tests<F: Field>() {
     // Multiplication by zero
     {
         let mut a = F::rand(&mut rng);
-        a.mul_assign(&F::zero());
+        a.mul_assign_ref(&F::zero());
         assert!(a.is_zero());
     }
 
@@ -100,7 +100,7 @@ pub fn from_str_tests<F: PrimeField>() {
         let b = F::from_str(b).unwrap();
         let c = F::from_str(c).unwrap();
 
-        a.mul_assign(&b);
+        a.mul_assign_ref(&b);
 
         assert_eq!(a, c);
     }
@@ -131,16 +131,16 @@ fn random_multiplication_tests<F: Field, R: Rng>(rng: &mut R) {
         let c = F::rand(rng);
 
         let mut t0 = a; // (a * b) * c
-        t0.mul_assign(&b);
-        t0.mul_assign(&c);
+        t0.mul_assign_ref(&b);
+        t0.mul_assign_ref(&c);
 
         let mut t1 = a; // (a * c) * b
-        t1.mul_assign(&c);
-        t1.mul_assign(&b);
+        t1.mul_assign_ref(&c);
+        t1.mul_assign_ref(&b);
 
         let mut t2 = b; // (b * c) * a
-        t2.mul_assign(&c);
-        t2.mul_assign(&a);
+        t2.mul_assign_ref(&c);
+        t2.mul_assign_ref(&a);
 
         assert_eq!(t0, t1);
         assert_eq!(t1, t2);
@@ -214,7 +214,7 @@ fn random_squaring_tests<F: Field, R: Rng>(rng: &mut R) {
     for _ in 0..10000 {
         let mut a = F::rand(rng);
         let mut b = a;
-        a.mul_assign(&b);
+        a.mul_assign_ref(&b);
         b.square();
 
         assert_eq!(a, b);
@@ -227,7 +227,7 @@ fn random_inversion_tests<F: Field, R: Rng>(rng: &mut R) {
     for _ in 0..10000 {
         let mut a = F::rand(rng);
         let b = a.inverse().unwrap(); // probablistically nonzero
-        a.mul_assign(&b);
+        a.mul_assign_ref(&b);
 
         assert_eq!(a, F::one());
     }
@@ -246,16 +246,16 @@ fn random_expansion_tests<F: Field, R: Rng>(rng: &mut R) {
         t0.add_assign(&b);
         let mut t1 = c;
         t1.add_assign(&d);
-        t0.mul_assign(&t1);
+        t0.mul_assign_ref(&t1);
 
         let mut t2 = a;
-        t2.mul_assign(&c);
+        t2.mul_assign_ref(&c);
         let mut t3 = b;
-        t3.mul_assign(&c);
+        t3.mul_assign_ref(&c);
         let mut t4 = a;
-        t4.mul_assign(&d);
+        t4.mul_assign_ref(&d);
         let mut t5 = b;
-        t5.mul_assign(&d);
+        t5.mul_assign_ref(&d);
 
         t2.add_assign(&t3);
         t2.add_assign(&t4);

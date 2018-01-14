@@ -57,11 +57,11 @@ impl Engine for Bls12 {
             let mut c0 = coeffs.0;
             let mut c1 = coeffs.1;
 
-            c0.c0.mul_assign(&p.y);
-            c0.c1.mul_assign(&p.y);
+            c0.c0.mul_assign_ref(&p.y);
+            c0.c1.mul_assign_ref(&p.y);
 
-            c1.c0.mul_assign(&p.x);
-            c1.c1.mul_assign(&p.x);
+            c1.c0.mul_assign_ref(&p.x);
+            c1.c1.mul_assign_ref(&p.x);
 
             // Sparse multiplication in Fq12
             f.mul_by_014(&coeffs.2, &c1, &c0);
@@ -107,10 +107,10 @@ impl Engine for Bls12 {
         match r.inverse() {
             Some(mut f2) => {
                 let mut r = f1;
-                r.mul_assign(&f2);
+                r.mul_assign_ref(&f2);
                 f2 = r;
                 r.frobenius_map(2);
-                r.mul_assign(&f2);
+                r.mul_assign_ref(&f2);
 
                 fn exp_by_x(f: &mut Fq12, x: u64)
                 {
@@ -131,27 +131,27 @@ impl Engine for Bls12 {
                 x <<= 1;
                 let mut y3 = r;
                 y3.conjugate();
-                y1.mul_assign(&y3);
+                y1.mul_assign_ref(&y3);
                 y1.conjugate();
-                y1.mul_assign(&y2);
+                y1.mul_assign_ref(&y2);
                 y2 = y1;
                 exp_by_x(&mut y2, x);
                 y3 = y2;
                 exp_by_x(&mut y3, x);
                 y1.conjugate();
-                y3.mul_assign(&y1);
+                y3.mul_assign_ref(&y1);
                 y1.conjugate();
                 y1.frobenius_map(3);
                 y2.frobenius_map(2);
-                y1.mul_assign(&y2);
+                y1.mul_assign_ref(&y2);
                 y2 = y3;
                 exp_by_x(&mut y2, x);
-                y2.mul_assign(&y0);
-                y2.mul_assign(&r);
-                y1.mul_assign(&y2);
+                y2.mul_assign_ref(&y0);
+                y2.mul_assign_ref(&r);
+                y1.mul_assign_ref(&y2);
                 y2 = y3;
                 y2.frobenius_map(1);
-                y1.mul_assign(&y2);
+                y1.mul_assign_ref(&y2);
 
                 Some(y1)
             },
@@ -218,7 +218,7 @@ impl G2Prepared {
 
             r.y = tmp3;
             r.y.sub_assign(&r.x);
-            r.y.mul_assign(&tmp4);
+            r.y.mul_assign_ref(&tmp4);
 
             tmp2.double();
             tmp2.double();
@@ -227,7 +227,7 @@ impl G2Prepared {
             r.y.sub_assign(&tmp2);
 
             tmp3 = tmp4;
-            tmp3.mul_assign(&zsquared);
+            tmp3.mul_assign_ref(&zsquared);
             tmp3.double();
             tmp3.negate();
 
@@ -241,7 +241,7 @@ impl G2Prepared {
             tmp6.sub_assign(&tmp1);
 
             tmp0 = r.z;
-            tmp0.mul_assign(&zsquared);
+            tmp0.mul_assign_ref(&zsquared);
             tmp0.double();
 
             (tmp0, tmp3, tmp6)
@@ -260,14 +260,14 @@ impl G2Prepared {
             ysquared.square();
 
             let mut t0 = zsquared;
-            t0.mul_assign(&q.x);
+            t0.mul_assign_ref(&q.x);
 
             let mut t1 = q.y;
             t1.add_assign(&r.z);
             t1.square();
             t1.sub_assign(&ysquared);
             t1.sub_assign(&zsquared);
-            t1.mul_assign(&zsquared);
+            t1.mul_assign_ref(&zsquared);
 
             let mut t2 = t0;
             t2.sub_assign(&r.x);
@@ -280,17 +280,17 @@ impl G2Prepared {
             t4.double();
 
             let mut t5 = t4;
-            t5.mul_assign(&t2);
+            t5.mul_assign_ref(&t2);
 
             let mut t6 = t1;
             t6.sub_assign(&r.y);
             t6.sub_assign(&r.y);
 
             let mut t9 = t6;
-            t9.mul_assign(&q.x);
+            t9.mul_assign_ref(&q.x);
 
             let mut t7 = t4;
-            t7.mul_assign(&r.x);
+            t7.mul_assign_ref(&r.x);
 
             r.x = t6;
             r.x.square();
@@ -308,10 +308,10 @@ impl G2Prepared {
 
             let mut t8 = t7;
             t8.sub_assign(&r.x);
-            t8.mul_assign(&t6);
+            t8.mul_assign_ref(&t6);
 
             t0 = r.y;
-            t0.mul_assign(&t5);
+            t0.mul_assign_ref(&t5);
             t0.double();
 
             r.y = t8;

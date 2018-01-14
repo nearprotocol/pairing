@@ -77,7 +77,7 @@ fn random_miller_loop_tests<E: Engine>() {
         let cd = E::pairing(c, d);
 
         let mut abcd = ab;
-        abcd.mul_assign(&cd);
+        abcd.mul_assign_ref(&cd);
 
         let a = a.into_affine().prepare();
         let b = b.into_affine().prepare();
@@ -103,22 +103,22 @@ fn random_bilinearity_tests<E: Engine>() {
         let d = E::Fr::rand(&mut rng);
 
         let mut ac = a;
-        ac.mul_assign(c);
+        ac.mul_assign_ref(c);
 
         let mut ad = a;
-        ad.mul_assign(d);
+        ad.mul_assign_ref(d);
 
         let mut bc = b;
-        bc.mul_assign(c);
+        bc.mul_assign_ref(c);
 
         let mut bd = b;
-        bd.mul_assign(d);
+        bd.mul_assign_ref(d);
 
         let acbd = E::pairing(ac, bd);
         let adbc = E::pairing(ad, bc);
 
         let mut cd = c;
-        cd.mul_assign(&d);
+        cd.mul_assign_ref(&d);
 
         let abcd = E::pairing(a, b).pow(cd.into_repr());
 

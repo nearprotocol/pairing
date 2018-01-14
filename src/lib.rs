@@ -19,13 +19,12 @@
 #[cfg(test)]
 extern crate test;
 
+extern crate alga;
 extern crate rand;
 extern crate byteorder;
 
 #[cfg(test)]
 pub mod tests;
-
-pub mod bls12_381;
 
 mod wnaf;
 pub use self::wnaf::Wnaf;
@@ -33,6 +32,8 @@ pub use self::wnaf::Wnaf;
 use std::fmt;
 use std::error::Error;
 use std::io::{self, Read, Write};
+
+use alga::general::ClosedMul;
 
 /// An "engine" is a collection of types (fields, elliptic curve groups, etc.)
 /// with well-defined relationships. In particular, the G1/G2 curve groups are
@@ -143,7 +144,7 @@ pub trait CurveProjective: PartialEq +
     fn negate(&mut self);
 
     /// Performs scalar multiplication of this element.
-    fn mul_assign<S: Into<<Self::Scalar as PrimeField>::Repr>>(&mut self, other: S);
+    fn mul_assign_ref<S: Into<<Self::Scalar as PrimeField>::Repr>>(&mut self, other: S);
 
     /// Converts this element into its affine representation.
     fn into_affine(&self) -> Self::Affine;
@@ -263,6 +264,7 @@ pub trait EncodedPoint: Sized +
 /// This trait represents an element of a field.
 pub trait Field: Sized +
                  Eq +
+                 ClosedMul +
                  Copy +
                  Clone +
                  Send +
@@ -297,7 +299,7 @@ pub trait Field: Sized +
     fn sub_assign(&mut self, other: &Self);
 
     /// Multiplies another element by this element.
-    fn mul_assign(&mut self, other: &Self);
+    fn mul_assign_ref(&mut self, other: &Self);
 
     /// Computes the multiplicative inverse of this element, if nonzero.
     fn inverse(&self) -> Option<Self>;
@@ -322,11 +324,34 @@ pub trait Field: Sized +
             }
 
             if i {
-                res.mul_assign(self);
+                res.mul_assign_ref(self);
             }
         }
 
         res
+    }
+}
+
+#[macro_export]
+macro_rules! field_operations {
+    ($t:ident) => {
+        use std::ops::{MulAssign, Mul};
+
+        impl MulAssign for $t {
+            fn mul_assign(&mut self, other: $t) {
+                self.mul_assign_ref(&other);
+            }
+        }
+
+        impl Mul for $t {
+            type Output = $t;
+
+            fn mul(self, other: $t) -> $t {
+                let mut ret = self.clone();
+                ret.mul_assign_ref(&other);
+                ret
+            }
+        }
     }
 }
 
@@ -527,7 +552,7 @@ pub trait PrimeField: Field
                         first_digit = false;
                     }
 
-                    res.mul_assign(&ten);
+                    res.mul_assign_ref(&ten);
                     res.add_assign(&Self::from_repr(Self::Repr::from(u64::from(c))).unwrap());
                 },
                 None => {
@@ -742,3 +767,7 @@ mod arith_impl {
         combine_u64(r1, r0)
     }
 }
+
+
+#[macro_use]
+pub mod bls12_381;

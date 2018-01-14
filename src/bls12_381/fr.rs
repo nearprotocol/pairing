@@ -254,13 +254,15 @@ impl From<Fr> for FrRepr {
     }
 }
 
+field_operations!(Fr);
+
 impl PrimeField for Fr {
     type Repr = FrRepr;
 
     fn from_repr(r: FrRepr) -> Result<Fr, PrimeFieldDecodingError> {
         let mut r = Fr(r);
         if r.is_valid() {
-            r.mul_assign(&Fr(R2));
+            r.mul_assign_ref(&Fr(R2));
 
             Ok(r)
         } else {
@@ -409,7 +411,7 @@ impl Field for Fr {
     }
 
     #[inline]
-    fn mul_assign(&mut self, other: &Fr)
+    fn mul_assign_ref(&mut self, other: &Fr)
     {
         let mut carry = 0;
         let r0 = ::mac_with_carry(0, (self.0).0[0], (other.0).0[0], &mut carry);
@@ -589,9 +591,9 @@ impl SqrtField for Fr {
                     for _ in 0..(m - i - 1) {
                         c.square();
                     }
-                    r.mul_assign(&c);
+                    r.mul_assign_ref(&c);
                     c.square();
-                    t.mul_assign(&c);
+                    t.mul_assign_ref(&c);
                     m = i;
                 }
 
@@ -963,9 +965,9 @@ fn test_fr_sub_assign() {
 }
 
 #[test]
-fn test_fr_mul_assign() {
+fn test_fr_mul_assign_ref() {
     let mut tmp = Fr(FrRepr([0x6b7e9b8faeefc81a, 0xe30a8463f348ba42, 0xeff3cb67a8279c9c, 0x3d303651bd7c774d]));
-    tmp.mul_assign(&Fr(FrRepr([0x13ae28e3bc35ebeb, 0xa10f4488075cae2c, 0x8160e95a853c3b5d, 0x5ae3f03b561a841d])));
+    tmp.mul_assign_ref(&Fr(FrRepr([0x13ae28e3bc35ebeb, 0xa10f4488075cae2c, 0x8160e95a853c3b5d, 0x5ae3f03b561a841d])));
     assert!(tmp == Fr(FrRepr([0x23717213ce710f71, 0xdbee1fe53a16e1af, 0xf565d3e1c2a48000, 0x4426507ee75df9d7])));
 
     let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
@@ -977,12 +979,12 @@ fn test_fr_mul_assign() {
         let c = Fr::rand(&mut rng);
 
         let mut tmp1 = a;
-        tmp1.mul_assign(&b);
-        tmp1.mul_assign(&c);
+        tmp1.mul_assign_ref(&b);
+        tmp1.mul_assign_ref(&c);
 
         let mut tmp2 = b;
-        tmp2.mul_assign(&c);
-        tmp2.mul_assign(&a);
+        tmp2.mul_assign_ref(&c);
+        tmp2.mul_assign_ref(&a);
 
         assert_eq!(tmp1, tmp2);
     }
@@ -998,11 +1000,11 @@ fn test_fr_mul_assign() {
         let mut tmp1 = a;
         tmp1.add_assign(&b);
         tmp1.add_assign(&c);
-        tmp1.mul_assign(&r);
+        tmp1.mul_assign_ref(&r);
 
-        a.mul_assign(&r);
-        b.mul_assign(&r);
-        c.mul_assign(&r);
+        a.mul_assign_ref(&r);
+        b.mul_assign_ref(&r);
+        c.mul_assign_ref(&r);
 
         a.add_assign(&b);
         a.add_assign(&c);
@@ -1028,7 +1030,7 @@ fn test_fr_squaring() {
         tmp.square();
 
         let mut tmp2 = a;
-        tmp2.mul_assign(&a);
+        tmp2.mul_assign_ref(&a);
 
         assert_eq!(tmp, tmp2);
     }
@@ -1046,7 +1048,7 @@ fn test_fr_inverse() {
         // Ensure that a * a^-1 = 1
         let mut a = Fr::rand(&mut rng);
         let ainv = a.inverse().unwrap();
-        a.mul_assign(&ainv);
+        a.mul_assign_ref(&ainv);
         assert_eq!(a, one);
     }
 }
@@ -1098,7 +1100,7 @@ fn test_fr_pow() {
         let target = a.pow(&[i]);
         let mut c = Fr::one();
         for _ in 0..i {
-            c.mul_assign(&a);
+            c.mul_assign_ref(&a);
         }
         assert_eq!(c, target);
     }
@@ -1156,7 +1158,7 @@ fn test_fr_from_into_repr() {
     let b = FrRepr([0x264e9454885e2475, 0x46f7746bb0308370, 0x4683ef5347411f9, 0x58838d7f208d4492]);
     let b_fr = Fr::from_repr(b).unwrap();
     let c = FrRepr([0x48a09ab93cfc740d, 0x3a6600fbfc7a671, 0x838567017501d767, 0x7161d6da77745512]);
-    a_fr.mul_assign(&b_fr);
+    a_fr.mul_assign_ref(&b_fr);
     assert_eq!(a_fr.into_repr(), c);
 
     // Zero should be in the field.

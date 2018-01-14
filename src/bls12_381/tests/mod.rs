@@ -189,7 +189,7 @@ fn test_g1_uncompressed_invalid_vectors() {
         loop {
             let mut x3b = x;
             x3b.square();
-            x3b.mul_assign(&x);
+            x3b.mul_assign_ref(&x);
             x3b.add_assign(&Fq::from_repr(FqRepr::from(4)).unwrap()); // TODO: perhaps expose coeff_b through API?
 
             if let Some(y) = x3b.sqrt() {
@@ -324,7 +324,7 @@ fn test_g2_uncompressed_invalid_vectors() {
         loop {
             let mut x3b = x;
             x3b.square();
-            x3b.mul_assign(&x);
+            x3b.mul_assign_ref(&x);
             x3b.add_assign(&Fq2 {
                 c0: Fq::from_repr(FqRepr::from(4)).unwrap(),
                 c1: Fq::from_repr(FqRepr::from(4)).unwrap()
@@ -418,7 +418,7 @@ fn test_g1_compressed_invalid_vectors() {
         loop {
             let mut x3b = x;
             x3b.square();
-            x3b.mul_assign(&x);
+            x3b.mul_assign_ref(&x);
             x3b.add_assign(&Fq::from_repr(FqRepr::from(4)).unwrap()); // TODO: perhaps expose coeff_b through API?
 
             if let Some(_) = x3b.sqrt() {
@@ -443,7 +443,7 @@ fn test_g1_compressed_invalid_vectors() {
         loop {
             let mut x3b = x;
             x3b.square();
-            x3b.mul_assign(&x);
+            x3b.mul_assign_ref(&x);
             x3b.add_assign(&Fq::from_repr(FqRepr::from(4)).unwrap()); // TODO: perhaps expose coeff_b through API?
 
             if let Some(_) = x3b.sqrt() {
@@ -547,7 +547,7 @@ fn test_g2_compressed_invalid_vectors() {
         loop {
             let mut x3b = x;
             x3b.square();
-            x3b.mul_assign(&x);
+            x3b.mul_assign_ref(&x);
             x3b.add_assign(&Fq2 {
                 c0: Fq::from_repr(FqRepr::from(4)).unwrap(),
                 c1: Fq::from_repr(FqRepr::from(4)).unwrap(),
@@ -579,7 +579,7 @@ fn test_g2_compressed_invalid_vectors() {
         loop {
             let mut x3b = x;
             x3b.square();
-            x3b.mul_assign(&x);
+            x3b.mul_assign_ref(&x);
             x3b.add_assign(&Fq2 {
                 c0: Fq::from_repr(FqRepr::from(4)).unwrap(),
                 c1: Fq::from_repr(FqRepr::from(4)).unwrap(),

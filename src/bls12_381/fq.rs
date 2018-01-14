@@ -449,13 +449,15 @@ impl From<Fq> for FqRepr {
     }
 }
 
+field_operations!(Fq);
+
 impl PrimeField for Fq {
     type Repr = FqRepr;
 
     fn from_repr(r: FqRepr) -> Result<Fq, PrimeFieldDecodingError> {
         let mut r = Fq(r);
         if r.is_valid() {
-            r.mul_assign(&Fq(R2));
+            r.mul_assign_ref(&Fq(R2));
 
             Ok(r)
         } else {
@@ -605,7 +607,7 @@ impl Field for Fq {
     }
 
     #[inline]
-    fn mul_assign(&mut self, other: &Fq)
+    fn mul_assign_ref(&mut self, other: &Fq)
     {
         let mut carry = 0;
         let r0 = ::mac_with_carry(0, (self.0).0[0], (other.0).0[0], &mut carry);
@@ -871,7 +873,7 @@ impl SqrtField for Fq {
         let mut a1 = self.pow([0xee7fbfffffffeaaa, 0x7aaffffac54ffff, 0xd9cc34a83dac3d89, 0xd91dd2e13ce144af, 0x92c6e9ed90d2eb35, 0x680447a8e5ff9a6]);
         let mut a0 = a1;
         a0.square();
-        a0.mul_assign(self);
+        a0.mul_assign_ref(self);
 
         if a0 == NEGATIVE_ONE
         {
@@ -879,7 +881,7 @@ impl SqrtField for Fq {
         }
         else
         {
-            a1.mul_assign(self);
+            a1.mul_assign_ref(self);
             Some(a1)
         }
     }
@@ -1337,9 +1339,9 @@ fn test_fq_sub_assign() {
 }
 
 #[test]
-fn test_fq_mul_assign() {
+fn test_fq_mul_assign_ref() {
     let mut tmp = Fq(FqRepr([0xcc6200000020aa8a, 0x422800801dd8001a, 0x7f4f5e619041c62c, 0x8a55171ac70ed2ba, 0x3f69cc3a3d07d58b, 0xb972455fd09b8ef]));
-    tmp.mul_assign(&Fq(FqRepr([0x329300000030ffcf, 0x633c00c02cc40028, 0xbef70d925862a942, 0x4f7fa2a82a963c17, 0xdf1eb2575b8bc051, 0x1162b680fb8e9566])));
+    tmp.mul_assign_ref(&Fq(FqRepr([0x329300000030ffcf, 0x633c00c02cc40028, 0xbef70d925862a942, 0x4f7fa2a82a963c17, 0xdf1eb2575b8bc051, 0x1162b680fb8e9566])));
     assert!(tmp == Fq(FqRepr([0x9dc4000001ebfe14, 0x2850078997b00193, 0xa8197f1abb4d7bf, 0xc0309573f4bfe871, 0xf48d0923ffaf7620, 0x11d4b58c7a926e66])));
 
     let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
@@ -1351,12 +1353,12 @@ fn test_fq_mul_assign() {
         let c = Fq::rand(&mut rng);
 
         let mut tmp1 = a;
-        tmp1.mul_assign(&b);
-        tmp1.mul_assign(&c);
+        tmp1.mul_assign_ref(&b);
+        tmp1.mul_assign_ref(&c);
 
         let mut tmp2 = b;
-        tmp2.mul_assign(&c);
-        tmp2.mul_assign(&a);
+        tmp2.mul_assign_ref(&c);
+        tmp2.mul_assign_ref(&a);
 
         assert_eq!(tmp1, tmp2);
     }
@@ -1372,11 +1374,11 @@ fn test_fq_mul_assign() {
         let mut tmp1 = a;
         tmp1.add_assign(&b);
         tmp1.add_assign(&c);
-        tmp1.mul_assign(&r);
+        tmp1.mul_assign_ref(&r);
 
-        a.mul_assign(&r);
-        b.mul_assign(&r);
-        c.mul_assign(&r);
+        a.mul_assign_ref(&r);
+        b.mul_assign_ref(&r);
+        c.mul_assign_ref(&r);
 
         a.add_assign(&b);
         a.add_assign(&c);
@@ -1402,7 +1404,7 @@ fn test_fq_squaring() {
         tmp.square();
 
         let mut tmp2 = a;
-        tmp2.mul_assign(&a);
+        tmp2.mul_assign_ref(&a);
 
         assert_eq!(tmp, tmp2);
     }
@@ -1420,7 +1422,7 @@ fn test_fq_inverse() {
         // Ensure that a * a^-1 = 1
         let mut a = Fq::rand(&mut rng);
         let ainv = a.inverse().unwrap();
-        a.mul_assign(&ainv);
+        a.mul_assign_ref(&ainv);
         assert_eq!(a, one);
     }
 }
@@ -1472,7 +1474,7 @@ fn test_fq_pow() {
         let target = a.pow(&[i]);
         let mut c = Fq::one();
         for _ in 0..i {
-            c.mul_assign(&a);
+            c.mul_assign_ref(&a);
         }
         assert_eq!(c, target);
     }
@@ -1530,7 +1532,7 @@ fn test_fq_from_into_repr() {
     let b = FqRepr([0xbba57917c32f0cf0, 0xe7f878cf87f05e5d, 0x9498b4292fd27459, 0xd59fd94ee4572cfa, 0x1f607186d5bb0059, 0xb13955f5ac7f6a3]);
     let b_fq = Fq::from_repr(b).unwrap();
     let c = FqRepr([0xf5f70713b717914c, 0x355ea5ac64cbbab1, 0xce60dd43417ec960, 0xf16b9d77b0ad7d10, 0xa44c204c1de7cdb7, 0x1684487772bc9a5a]);
-    a_fq.mul_assign(&b_fq);
+    a_fq.mul_assign_ref(&b_fq);
     assert_eq!(a_fq.into_repr(), c);
 
     // Zero should be in the field.

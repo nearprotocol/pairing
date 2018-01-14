@@ -37,6 +37,8 @@ impl PartialOrd for Fq2 {
     }
 }
 
+field_operations!(Fq2);
+
 impl Fq2 {
     /// Multiply this element by the cubic and quadratic nonresidue 1 + u.
     pub fn mul_by_nonresidue(&mut self) {
@@ -86,13 +88,13 @@ impl Field for Fq2 {
 
     fn square(&mut self) {
         let mut ab = self.c0;
-        ab.mul_assign(&self.c1);
+        ab.mul_assign_ref(&self.c1);
         let mut c0c1 = self.c0;
         c0c1.add_assign(&self.c1);
         let mut c0 = self.c1;
         c0.negate();
         c0.add_assign(&self.c0);
-        c0.mul_assign(&c0c1);
+        c0.mul_assign_ref(&c0c1);
         c0.sub_assign(&ab);
         self.c1 = ab;
         self.c1.add_assign(&ab);
@@ -120,15 +122,15 @@ impl Field for Fq2 {
         self.c1.sub_assign(&other.c1);
     }
 
-    fn mul_assign(&mut self, other: &Self) {
+    fn mul_assign_ref(&mut self, other: &Self) {
         let mut aa = self.c0;
-        aa.mul_assign(&other.c0);
+        aa.mul_assign_ref(&other.c0);
         let mut bb = self.c1;
-        bb.mul_assign(&other.c1);
+        bb.mul_assign_ref(&other.c1);
         let mut o = other.c0;
         o.add_assign(&other.c1);
         self.c1.add_assign(&self.c0);
-        self.c1.mul_assign(&o);
+        self.c1.mul_assign_ref(&o);
         self.c1.sub_assign(&aa);
         self.c1.sub_assign(&bb);
         self.c0 = aa;
@@ -146,8 +148,8 @@ impl Field for Fq2 {
                 c0: self.c0,
                 c1: self.c1
             };
-            tmp.c0.mul_assign(&t);
-            tmp.c1.mul_assign(&t);
+            tmp.c0.mul_assign_ref(&t);
+            tmp.c1.mul_assign_ref(&t);
             tmp.c1.negate();
 
             tmp
@@ -156,9 +158,10 @@ impl Field for Fq2 {
 
     fn frobenius_map(&mut self, power: usize)
     {
-        self.c1.mul_assign(&FROBENIUS_COEFF_FQ2_C1[power % 2]);
+        self.c1.mul_assign_ref(&FROBENIUS_COEFF_FQ2_C1[power % 2]);
     }
 }
+
 
 impl SqrtField for Fq2 {
 
@@ -176,10 +179,10 @@ impl SqrtField for Fq2 {
             let mut a1 = self.pow([0xee7fbfffffffeaaa, 0x7aaffffac54ffff, 0xd9cc34a83dac3d89, 0xd91dd2e13ce144af, 0x92c6e9ed90d2eb35, 0x680447a8e5ff9a6]);
             let mut alpha = a1;
             alpha.square();
-            alpha.mul_assign(self);
+            alpha.mul_assign_ref(self);
             let mut a0 = alpha;
             a0.frobenius_map(1);
-            a0.mul_assign(&alpha);
+            a0.mul_assign_ref(&alpha);
 
             let neg1 = Fq2 {
                 c0: NEGATIVE_ONE,
@@ -189,15 +192,15 @@ impl SqrtField for Fq2 {
             if a0 == neg1 {
                 None
             } else {
-                a1.mul_assign(self);
+                a1.mul_assign_ref(self);
 
                 if alpha == neg1 {
-                    a1.mul_assign(&Fq2{c0: Fq::zero(), c1: Fq::one()});
+                    a1.mul_assign_ref(&Fq2{c0: Fq::zero(), c1: Fq::one()});
                 } else {
                     alpha.add_assign(&Fq2::one());
                     // alpha = alpha^((q - 1) / 2)
                     alpha = alpha.pow([0xdcff7fffffffd555, 0xf55ffff58a9ffff, 0xb39869507b587b12, 0xb23ba5c279c2895f, 0x258dd3db21a5d66b, 0xd0088f51cbff34d]);
-                    a1.mul_assign(&alpha);
+                    a1.mul_assign_ref(&alpha);
                 }
 
                 Some(a1)
@@ -276,7 +279,7 @@ fn test_fq2_mul() {
         c0: Fq::from_repr(FqRepr([0x85c9f989e1461f03, 0xa2e33c333449a1d6, 0x41e461154a7354a3, 0x9ee53e7e84d7532e, 0x1c202d8ed97afb45, 0x51d3f9253e2516f])).unwrap(),
         c1: Fq::from_repr(FqRepr([0xa7348a8b511aedcf, 0x143c215d8176b319, 0x4cc48081c09b8903, 0x9533e4a9a5158be, 0x7a5e1ecb676d65f9, 0x180c3ee46656b008])).unwrap()
     };
-    a.mul_assign(&Fq2 {
+    a.mul_assign_ref(&Fq2 {
         c0: Fq::from_repr(FqRepr([0xe21f9169805f537e, 0xfc87e62e179c285d, 0x27ece175be07a531, 0xcd460f9f0c23e430, 0x6c9110292bfa409, 0x2c93a72eb8af83e])).unwrap(),
         c1: Fq::from_repr(FqRepr([0x4b1c3f936d8992d4, 0x1d2a72916dba4c8a, 0x8871c508658d1e5f, 0x57a06d3135a752ae, 0x634cd3c6c565096d, 0x19e17334d4e93558])).unwrap()
     });
@@ -462,7 +465,7 @@ fn test_fq2_mul_nonresidue() {
         let mut a = Fq2::rand(&mut rng);
         let mut b = a;
         a.mul_by_nonresidue();
-        b.mul_assign(&nqr);
+        b.mul_assign_ref(&nqr);
 
         assert_eq!(a, b);
     }
