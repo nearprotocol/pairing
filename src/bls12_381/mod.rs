@@ -188,7 +188,7 @@ impl G2Prepared {
             tmp2.square();
 
             let mut tmp3 = tmp1;
-            tmp3.add_assign(&r.x);
+            tmp3.add_assign_ref(&r.x);
             tmp3.square();
             tmp3.sub_assign(&tmp0);
             tmp3.sub_assign(&tmp2);
@@ -196,10 +196,10 @@ impl G2Prepared {
 
             let mut tmp4 = tmp0;
             tmp4.double();
-            tmp4.add_assign(&tmp0);
+            tmp4.add_assign_ref(&tmp0);
 
             let mut tmp6 = r.x;
-            tmp6.add_assign(&tmp4);
+            tmp6.add_assign_ref(&tmp4);
 
             let mut tmp5 = tmp4;
             tmp5.square();
@@ -211,7 +211,7 @@ impl G2Prepared {
             r.x.sub_assign(&tmp3);
             r.x.sub_assign(&tmp3);
 
-            r.z.add_assign(&r.y);
+            r.z.add_assign_ref(&r.y);
             r.z.square();
             r.z.sub_assign(&tmp1);
             r.z.sub_assign(&zsquared);
@@ -263,7 +263,7 @@ impl G2Prepared {
             t0.mul_assign_ref(&q.x);
 
             let mut t1 = q.y;
-            t1.add_assign(&r.z);
+            t1.add_assign_ref(&r.z);
             t1.square();
             t1.sub_assign(&ysquared);
             t1.sub_assign(&zsquared);
@@ -298,13 +298,13 @@ impl G2Prepared {
             r.x.sub_assign(&t7);
             r.x.sub_assign(&t7);
 
-            r.z.add_assign(&t2);
+            r.z.add_assign_ref(&t2);
             r.z.square();
             r.z.sub_assign(&zsquared);
             r.z.sub_assign(&t3);
 
             let mut t10 = q.y;
-            t10.add_assign(&r.z);
+            t10.add_assign_ref(&r.z);
 
             let mut t8 = t7;
             t8.sub_assign(&r.x);

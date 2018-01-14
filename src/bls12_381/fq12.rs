@@ -4,6 +4,8 @@ use super::fq6::Fq6;
 use super::fq2::Fq2;
 use super::fq::{FROBENIUS_COEFF_FQ12_C1};
 
+use num_traits::Zero;
+
 /// An element of Fq12, represented by c0 + c1 * w.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Fq12 {
@@ -11,8 +13,7 @@ pub struct Fq12 {
     pub c1: Fq6
 }
 
-impl ::std::fmt::Display for Fq12
-{
+impl ::std::fmt::Display for Fq12 {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
         write!(f, "Fq12({} + {} * w)", self.c0, self.c1)
     }
@@ -47,19 +48,18 @@ impl Fq12 {
         let mut bb = self.c1;
         bb.mul_by_1(c4);
         let mut o = *c1;
-        o.add_assign(c4);
-        self.c1.add_assign(&self.c0);
+        o.add_assign_ref(c4);
+        self.c1.add_assign_ref(&self.c0);
         self.c1.mul_by_01(c0, &o);
         self.c1.sub_assign(&aa);
         self.c1.sub_assign(&bb);
         self.c0 = bb;
         self.c0.mul_by_nonresidue();
-        self.c0.add_assign(&aa);
+        self.c0.add_assign_ref(&aa);
     }
 }
 
-impl Field for Fq12
-{
+impl Zero for Fq12 {
     fn zero() -> Self {
         Fq12 {
             c0: Fq6::zero(),
@@ -67,15 +67,18 @@ impl Field for Fq12
         }
     }
 
+    fn is_zero(&self) -> bool {
+        self.c0.is_zero() && self.c1.is_zero()
+    }
+
+}
+
+impl Field for Fq12 {
     fn one() -> Self {
         Fq12 {
             c0: Fq6::one(),
             c1: Fq6::zero()
         }
-    }
-
-    fn is_zero(&self) -> bool {
-        self.c0.is_zero() && self.c1.is_zero()
     }
 
     fn double(&mut self) {
@@ -88,9 +91,9 @@ impl Field for Fq12
         self.c1.negate();
     }
 
-    fn add_assign(&mut self, other: &Self) {
-        self.c0.add_assign(&other.c0);
-        self.c1.add_assign(&other.c1);
+    fn add_assign_ref(&mut self, other: &Self) {
+        self.c0.add_assign_ref(&other.c0);
+        self.c1.add_assign_ref(&other.c1);
     }
 
     fn sub_assign(&mut self, other: &Self) {
@@ -112,14 +115,14 @@ impl Field for Fq12
         let mut ab = self.c0;
         ab.mul_assign_ref(&self.c1);
         let mut c0c1 = self.c0;
-        c0c1.add_assign(&self.c1);
+        c0c1.add_assign_ref(&self.c1);
         let mut c0 = self.c1;
         c0.mul_by_nonresidue();
-        c0.add_assign(&self.c0);
+        c0.add_assign_ref(&self.c0);
         c0.mul_assign_ref(&c0c1);
         c0.sub_assign(&ab);
         self.c1 = ab;
-        self.c1.add_assign(&ab);
+        self.c1.add_assign_ref(&ab);
         ab.mul_by_nonresidue();
         c0.sub_assign(&ab);
         self.c0 = c0;
@@ -131,14 +134,14 @@ impl Field for Fq12
         let mut bb = self.c1;
         bb.mul_assign_ref(&other.c1);
         let mut o = other.c0;
-        o.add_assign(&other.c1);
-        self.c1.add_assign(&self.c0);
+        o.add_assign_ref(&other.c1);
+        self.c1.add_assign_ref(&self.c0);
         self.c1.mul_assign_ref(&o);
         self.c1.sub_assign(&aa);
         self.c1.sub_assign(&bb);
         self.c0 = bb;
         self.c0.mul_by_nonresidue();
-        self.c0.add_assign(&aa);
+        self.c0.add_assign_ref(&aa);
     }
 
     fn inverse(&self) -> Option<Self> {

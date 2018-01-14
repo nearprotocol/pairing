@@ -11,7 +11,7 @@ pub(crate) fn wnaf_table<G: CurveProjective>(table: &mut Vec<G>, mut base: G, wi
 
     for _ in 0..(1 << (window-1)) {
         table.push(base);
-        base.add_assign(&dbl);
+        base.add_assign_ref(&dbl);
     }
 }
 
@@ -63,7 +63,7 @@ pub(crate) fn wnaf_exp<G: CurveProjective>(table: &[G], wnaf: &[i64]) -> G
             found_one = true;
 
             if *n > 0 {
-                result.add_assign(&table[(n/2) as usize]);
+                result.add_assign_ref(&table[(n/2) as usize]);
             } else {
                 result.sub_assign(&table[((-n)/2) as usize]);
             }

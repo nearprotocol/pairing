@@ -89,7 +89,7 @@ macro_rules! curve_impl {
                 let mut res = $projective::zero();
                 for i in bits {
                     res.double();
-                    if i { res.add_assign_mixed(self) }
+                    if i { res.add_assign_ref_mixed(self) }
                 }
                 res
             }
@@ -104,7 +104,7 @@ macro_rules! curve_impl {
                 let mut x3b = x;
                 x3b.square();
                 x3b.mul_assign_ref(&x);
-                x3b.add_assign(&$affine::get_coeff_b());
+                x3b.add_assign_ref(&$affine::get_coeff_b());
 
                 x3b.sqrt().map(|y| {
                     let mut negy = y;
@@ -126,7 +126,7 @@ macro_rules! curve_impl {
                 let mut y2 = x.clone();
                 y2.square();
                 y2.mul_assign_ref(&x);
-                y2.add_assign(&Self::get_coeff_b());
+                y2.add_assign_ref(&Self::get_coeff_b());
                 y2
             }
 
@@ -155,8 +155,8 @@ macro_rules! curve_impl {
                 // w = (t^2 + b + 1)^(-1) * sqrt(-3) * t
                 let mut w = t;
                 w.square();
-                w.add_assign(&Self::get_coeff_b());
-                w.add_assign(&$basefield::one());
+                w.add_assign_ref(&Self::get_coeff_b());
+                w.add_assign_ref(&$basefield::one());
                 // handle the case t^2 + b + 1 == 0
                 if w.is_zero() { return $projective::zero() };
                 w = w.inverse().unwrap();
@@ -167,7 +167,7 @@ macro_rules! curve_impl {
                 let mut x1 = w;
                 x1.mul_assign_ref(&t);
                 x1.negate();
-                x1.add_assign(&Self::get_swenc_const1());
+                x1.add_assign_ref(&Self::get_swenc_const1());
                 let alpha = Self::y2_from_x(x1).legendre();
 
                 // x2 = -1 -x1
@@ -180,7 +180,7 @@ macro_rules! curve_impl {
                 let mut x3 = w;
                 x3.square();
                 x3 = x3.inverse().unwrap();
-                x3.add_assign(&$basefield::one());
+                x3.add_assign_ref(&$basefield::one());
 
                 let x = match (alpha, beta) {
                     (QuadraticResidue, _) => x1,
@@ -265,7 +265,7 @@ macro_rules! curve_impl {
                 nonce[32] = 0xff;
                 let t2 = Self::Base::hash(seed, nonce);
                 let mut t2 = Self::sw_encode(t2);
-                t2.add_assign(&t1);
+                t2.add_assign_ref(&t1);
                 t2.into_affine()
             }
         }
@@ -393,7 +393,7 @@ macro_rules! curve_impl {
 
                 // D = 2*((X1+B)2-A-C)
                 let mut d = self.x;
-                d.add_assign(&b);
+                d.add_assign_ref(&b);
                 d.square();
                 d.sub_assign(&a);
                 d.sub_assign(&c);
@@ -402,7 +402,7 @@ macro_rules! curve_impl {
                 // E = 3*A
                 let mut e = a;
                 e.double();
-                e.add_assign(&a);
+                e.add_assign_ref(&a);
 
                 // F = E^2
                 let mut f = e;
@@ -427,7 +427,7 @@ macro_rules! curve_impl {
                 self.y.sub_assign(&c);
             }
 
-            fn add_assign(&mut self, other: &Self) {
+            fn add_assign_ref(&mut self, other: &Self) {
                 if self.is_zero() {
                     *self = *other;
                     return;
@@ -509,7 +509,7 @@ macro_rules! curve_impl {
                     self.y.sub_assign(&s1);
 
                     // Z3 = ((Z1+Z2)^2 - Z1Z1 - Z2Z2)*H
-                    self.z.add_assign(&other.z);
+                    self.z.add_assign_ref(&other.z);
                     self.z.square();
                     self.z.sub_assign(&z1z1);
                     self.z.sub_assign(&z2z2);
@@ -517,7 +517,7 @@ macro_rules! curve_impl {
                 }
             }
 
-            fn add_assign_mixed(&mut self, other: &Self::Affine) {
+            fn add_assign_ref_mixed(&mut self, other: &Self::Affine) {
                 if other.is_zero() {
                     return;
                 }
@@ -592,7 +592,7 @@ macro_rules! curve_impl {
                     self.y.sub_assign(&j);
 
                     // Z3 = (Z1+H)^2-Z1Z1-HH
-                    self.z.add_assign(&h);
+                    self.z.add_assign_ref(&h);
                     self.z.square();
                     self.z.sub_assign(&z1z1);
                     self.z.sub_assign(&hh);
@@ -619,7 +619,7 @@ macro_rules! curve_impl {
                     }
 
                     if i {
-                        res.add_assign(self);
+                        res.add_assign_ref(self);
                     }
                 }
 
@@ -726,6 +726,7 @@ macro_rules! curve_impl {
 }
 
 pub mod g1 {
+    use num_traits::Zero;
     use rand::{Rand, Rng};
     use std::{fmt, cmp};
     use super::g2::G2Affine;
@@ -1033,7 +1034,7 @@ pub mod g1 {
             let mut rhs = x;
             rhs.square();
             rhs.mul_assign_ref(&x);
-            rhs.add_assign(&G1Affine::get_coeff_b());
+            rhs.add_assign_ref(&G1Affine::get_coeff_b());
 
             if let Some(y) = rhs.sqrt() {
                 let yrepr = y.into_repr();
@@ -1061,7 +1062,7 @@ pub mod g1 {
             }
 
             i += 1;
-            x.add_assign(&Fq::one());
+            x.add_assign_ref(&Fq::one());
         }
     }
 
@@ -1110,7 +1111,7 @@ pub mod g1 {
             z: Fq::one()
         };
 
-        p.add_assign(&G1 {
+        p.add_assign_ref(&G1 {
             x: Fq::from_repr(FqRepr([0xeec78f3096213cbf, 0xa12beb1fea1056e6, 0xc286c0211c40dd54, 0x5f44314ec5e3fb03, 0x24e8538737c6e675, 0x8abd623a594fba8])).unwrap(),
             y: Fq::from_repr(FqRepr([0x6b0528f088bb7044, 0x2fdeb5c82917ff9e, 0x9a5181f2fac226ad, 0xd65104c6f95a872a, 0x1f2998a5a9c61253, 0xe74846154a9e44])).unwrap(),
             z: Fq::one()
@@ -1179,12 +1180,12 @@ pub mod g1 {
         assert!(c.is_on_curve() && c.is_in_correct_subgroup_assuming_on_curve());
 
         let mut tmp1 = a.into_projective();
-        tmp1.add_assign(&b.into_projective());
+        tmp1.add_assign_ref(&b.into_projective());
         assert_eq!(tmp1.into_affine(), c);
         assert_eq!(tmp1, c.into_projective());
 
         let mut tmp2 = a.into_projective();
-        tmp2.add_assign_mixed(&b);
+        tmp2.add_assign_ref_mixed(&b);
         assert_eq!(tmp2.into_affine(), c);
         assert_eq!(tmp2, c.into_projective());
     }
@@ -1196,6 +1197,7 @@ pub mod g1 {
 }
 
 pub mod g2 {
+    use num_traits::Zero;
     use rand::{Rand, Rng};
     use std::{fmt, cmp};
     use super::super::{Bls12, Fq2, Fr, Fq, FrRepr, FqRepr, Fq12};
@@ -1532,7 +1534,7 @@ pub mod g2 {
             let mut rhs = x;
             rhs.square();
             rhs.mul_assign_ref(&x);
-            rhs.add_assign(&G2Affine::get_coeff_b());
+            rhs.add_assign_ref(&G2Affine::get_coeff_b());
 
             if let Some(y) = rhs.sqrt() {
                 let mut negy = y;
@@ -1558,7 +1560,7 @@ pub mod g2 {
             }
 
             i += 1;
-            x.add_assign(&Fq2::one());
+            x.add_assign_ref(&Fq2::one());
         }
     }
 
@@ -1631,7 +1633,7 @@ pub mod g2 {
             z: Fq2::one()
         };
 
-        p.add_assign(&G2 {
+        p.add_assign_ref(&G2 {
             x: Fq2 {
                 c0: Fq::from_repr(FqRepr([0xa8c763d25910bdd3, 0x408777b30ca3add4, 0x6115fcc12e2769e, 0x8e73a96b329ad190, 0x27c546f75ee1f3ab, 0xa33d27add5e7e82])).unwrap(),
                 c1: Fq::from_repr(FqRepr([0x93b1ebcd54870dfe, 0xf1578300e1342e11, 0x8270dca3a912407b, 0x2089faf462438296, 0x828e5848cd48ea66, 0x141ecbac1deb038b])).unwrap()

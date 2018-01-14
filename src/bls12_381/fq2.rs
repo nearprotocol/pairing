@@ -4,6 +4,8 @@ use super::fq::{Fq, FROBENIUS_COEFF_FQ2_C1, NEGATIVE_ONE};
 
 use std::cmp::Ordering;
 
+use num_traits::Zero;
+
 /// An element of Fq2, represented by c0 + c1 * u.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Fq2 {
@@ -44,7 +46,7 @@ impl Fq2 {
     pub fn mul_by_nonresidue(&mut self) {
         let t0 = self.c0;
         self.c0.sub_assign(&self.c1);
-        self.c1.add_assign(&t0);
+        self.c1.add_assign_ref(&t0);
     }
 
     /// Norm of Fq2 as extension field in i over Fq
@@ -53,7 +55,7 @@ impl Fq2 {
         let mut t1 = self.c1;
         t0.square();
         t1.square();
-        t1.add_assign(&t0);
+        t1.add_assign_ref(&t0);
 
         t1
     }
@@ -73,32 +75,36 @@ impl Rand for Fq2 {
     }
 }
 
-impl Field for Fq2 {
+
+impl Zero for Fq2 {
     fn zero() -> Self {
         Fq2 { c0: Fq::zero(), c1: Fq::zero() }
     }
 
-    fn one() -> Self {
-        Fq2 { c0: Fq::one(), c1: Fq::zero() }
-    }
-
     fn is_zero(&self) -> bool {
         self.c0.is_zero() && self.c1.is_zero()
+    }
+}
+
+impl Field for Fq2 {
+
+    fn one() -> Self {
+        Fq2 { c0: Fq::one(), c1: Fq::zero() }
     }
 
     fn square(&mut self) {
         let mut ab = self.c0;
         ab.mul_assign_ref(&self.c1);
         let mut c0c1 = self.c0;
-        c0c1.add_assign(&self.c1);
+        c0c1.add_assign_ref(&self.c1);
         let mut c0 = self.c1;
         c0.negate();
-        c0.add_assign(&self.c0);
+        c0.add_assign_ref(&self.c0);
         c0.mul_assign_ref(&c0c1);
         c0.sub_assign(&ab);
         self.c1 = ab;
-        self.c1.add_assign(&ab);
-        c0.add_assign(&ab);
+        self.c1.add_assign_ref(&ab);
+        c0.add_assign_ref(&ab);
         self.c0 = c0;
     }
 
@@ -112,9 +118,9 @@ impl Field for Fq2 {
         self.c1.negate();
     }
 
-    fn add_assign(&mut self, other: &Self) {
-        self.c0.add_assign(&other.c0);
-        self.c1.add_assign(&other.c1);
+    fn add_assign_ref(&mut self, other: &Self) {
+        self.c0.add_assign_ref(&other.c0);
+        self.c1.add_assign_ref(&other.c1);
     }
 
     fn sub_assign(&mut self, other: &Self) {
@@ -128,8 +134,8 @@ impl Field for Fq2 {
         let mut bb = self.c1;
         bb.mul_assign_ref(&other.c1);
         let mut o = other.c0;
-        o.add_assign(&other.c1);
-        self.c1.add_assign(&self.c0);
+        o.add_assign_ref(&other.c1);
+        self.c1.add_assign_ref(&self.c0);
         self.c1.mul_assign_ref(&o);
         self.c1.sub_assign(&aa);
         self.c1.sub_assign(&bb);
@@ -142,7 +148,7 @@ impl Field for Fq2 {
         t1.square();
         let mut t0 = self.c0;
         t0.square();
-        t0.add_assign(&t1);
+        t0.add_assign_ref(&t1);
         t0.inverse().map(|t| {
             let mut tmp = Fq2 {
                 c0: self.c0,
@@ -197,7 +203,7 @@ impl SqrtField for Fq2 {
                 if alpha == neg1 {
                     a1.mul_assign_ref(&Fq2{c0: Fq::zero(), c1: Fq::one()});
                 } else {
-                    alpha.add_assign(&Fq2::one());
+                    alpha.add_assign_ref(&Fq2::one());
                     // alpha = alpha^((q - 1) / 2)
                     alpha = alpha.pow([0xdcff7fffffffd555, 0xf55ffff58a9ffff, 0xb39869507b587b12, 0xb23ba5c279c2895f, 0x258dd3db21a5d66b, 0xd0088f51cbff34d]);
                     a1.mul_assign_ref(&alpha);
@@ -219,17 +225,17 @@ fn test_fq2_ordering() {
     let mut b = a.clone();
 
     assert!(a.cmp(&b) == Ordering::Equal);
-    b.c0.add_assign(&Fq::one());
+    b.c0.add_assign_ref(&Fq::one());
     assert!(a.cmp(&b) == Ordering::Less);
-    a.c0.add_assign(&Fq::one());
+    a.c0.add_assign_ref(&Fq::one());
     assert!(a.cmp(&b) == Ordering::Equal);
-    b.c1.add_assign(&Fq::one());
+    b.c1.add_assign_ref(&Fq::one());
     assert!(a.cmp(&b) == Ordering::Less);
-    a.c0.add_assign(&Fq::one());
+    a.c0.add_assign_ref(&Fq::one());
     assert!(a.cmp(&b) == Ordering::Less);
-    a.c1.add_assign(&Fq::one());
+    a.c1.add_assign_ref(&Fq::one());
     assert!(a.cmp(&b) == Ordering::Greater);
-    b.c0.add_assign(&Fq::one());
+    b.c0.add_assign_ref(&Fq::one());
     assert!(a.cmp(&b) == Ordering::Equal);
 }
 
@@ -316,7 +322,7 @@ fn test_fq2_addition() {
         c0: Fq::from_repr(FqRepr([0x2d0078036923ffc7, 0x11e59ea221a3b6d2, 0x8b1a52e0a90f59ed, 0xb966ce3bc2108b13, 0xccc649c4b9532bf3, 0xf8d295b2ded9dc])).unwrap(),
         c1: Fq::from_repr(FqRepr([0x977df6efcdaee0db, 0x946ae52d684fa7ed, 0xbe203411c66fb3a5, 0xb3f8afc0ee248cad, 0x4e464dea5bcfd41e, 0x12d1137b8a6a837])).unwrap()
     };
-    a.add_assign(&Fq2 {
+    a.add_assign_ref(&Fq2 {
         c0: Fq::from_repr(FqRepr([0x619a02d78dc70ef2, 0xb93adfc9119e33e8, 0x4bf0b99a9f0dca12, 0x3b88899a42a6318f, 0x986a4a62fa82a49d, 0x13ce433fa26027f5])).unwrap(),
         c1: Fq::from_repr(FqRepr([0x66323bf80b58b9b9, 0xa1379b6facf6e596, 0x402aef1fb797e32f, 0x2236f55246d0d44d, 0x4c8c1800eb104566, 0x11d6e20e986c2085])).unwrap()
     });

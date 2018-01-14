@@ -24,21 +24,21 @@ pub fn curve_tests<G: CurveProjective>()
     {
         let mut r = G::rand(&mut rng);
         let rcopy = r;
-        r.add_assign(&G::zero());
+        r.add_assign_ref(&G::zero());
         assert_eq!(r, rcopy);
-        r.add_assign_mixed(&G::Affine::zero());
+        r.add_assign_ref_mixed(&G::Affine::zero());
         assert_eq!(r, rcopy);
 
         let mut z = G::zero();
-        z.add_assign(&G::zero());
+        z.add_assign_ref(&G::zero());
         assert!(z.is_zero());
-        z.add_assign_mixed(&G::Affine::zero());
+        z.add_assign_ref_mixed(&G::Affine::zero());
         assert!(z.is_zero());
 
         let mut z2 = z;
-        z2.add_assign(&r);
+        z2.add_assign_ref(&r);
 
-        z.add_assign_mixed(&r.into_affine());
+        z.add_assign_ref_mixed(&r.into_affine());
 
         assert_eq!(z, z2);
         assert_eq!(z, r);
@@ -192,11 +192,11 @@ fn random_negation_tests<G: CurveProjective>() {
         t2.mul_assign_ref(sneg);
 
         let mut t3 = t1;
-        t3.add_assign(&t2);
+        t3.add_assign_ref(&t2);
         assert!(t3.is_zero());
 
         let mut t4 = t1;
-        t4.add_assign_mixed(&t2.into_affine());
+        t4.add_assign_ref_mixed(&t2.into_affine());
         assert!(t4.is_zero());
 
         t1.negate();
@@ -213,7 +213,7 @@ fn random_doubling_tests<G: CurveProjective>() {
 
         // 2(a + b)
         let mut tmp1 = a;
-        tmp1.add_assign(&b);
+        tmp1.add_assign_ref(&b);
         tmp1.double();
 
         // 2a + 2b
@@ -221,10 +221,10 @@ fn random_doubling_tests<G: CurveProjective>() {
         b.double();
 
         let mut tmp2 = a;
-        tmp2.add_assign(&b);
+        tmp2.add_assign_ref(&b);
 
         let mut tmp3 = a;
-        tmp3.add_assign_mixed(&b.into_affine());
+        tmp3.add_assign_ref_mixed(&b.into_affine());
 
         assert_eq!(tmp1, tmp2);
         assert_eq!(tmp1, tmp3);
@@ -244,7 +244,7 @@ fn random_multiplication_tests<G: CurveProjective>() {
 
         // s ( a + b )
         let mut tmp1 = a;
-        tmp1.add_assign(&b);
+        tmp1.add_assign_ref(&b);
         tmp1.mul_assign_ref(s);
 
         // sa + sb
@@ -252,11 +252,11 @@ fn random_multiplication_tests<G: CurveProjective>() {
         b.mul_assign_ref(s);
 
         let mut tmp2 = a;
-        tmp2.add_assign(&b);
+        tmp2.add_assign_ref(&b);
 
         // Affine multiplication
         let mut tmp3 = a_affine.mul(s);
-        tmp3.add_assign(&b_affine.mul(s));
+        tmp3.add_assign_ref(&b_affine.mul(s));
 
         assert_eq!(tmp1, tmp2);
         assert_eq!(tmp1, tmp3);
@@ -277,10 +277,10 @@ fn random_addition_tests<G: CurveProjective>() {
         // a + a should equal the doubling
         {
             let mut aplusa = a;
-            aplusa.add_assign(&a);
+            aplusa.add_assign_ref(&a);
 
             let mut aplusamixed = a;
-            aplusamixed.add_assign_mixed(&a.into_affine());
+            aplusamixed.add_assign_ref_mixed(&a.into_affine());
 
             let mut adouble = a;
             adouble.double();
@@ -293,35 +293,35 @@ fn random_addition_tests<G: CurveProjective>() {
 
         // (a + b) + c
         tmp[0] = a;
-        tmp[0].add_assign(&b);
-        tmp[0].add_assign(&c);
+        tmp[0].add_assign_ref(&b);
+        tmp[0].add_assign_ref(&c);
 
         // a + (b + c)
         tmp[1] = b;
-        tmp[1].add_assign(&c);
-        tmp[1].add_assign(&a);
+        tmp[1].add_assign_ref(&c);
+        tmp[1].add_assign_ref(&a);
 
         // (a + c) + b
         tmp[2] = a;
-        tmp[2].add_assign(&c);
-        tmp[2].add_assign(&b);
+        tmp[2].add_assign_ref(&c);
+        tmp[2].add_assign_ref(&b);
 
         // Mixed addition
 
         // (a + b) + c
         tmp[3] = a_affine.into_projective();
-        tmp[3].add_assign_mixed(&b_affine);
-        tmp[3].add_assign_mixed(&c_affine);
+        tmp[3].add_assign_ref_mixed(&b_affine);
+        tmp[3].add_assign_ref_mixed(&c_affine);
 
         // a + (b + c)
         tmp[4] = b_affine.into_projective();
-        tmp[4].add_assign_mixed(&c_affine);
-        tmp[4].add_assign_mixed(&a_affine);
+        tmp[4].add_assign_ref_mixed(&c_affine);
+        tmp[4].add_assign_ref_mixed(&a_affine);
 
         // (a + c) + b
         tmp[5] = a_affine.into_projective();
-        tmp[5].add_assign_mixed(&c_affine);
-        tmp[5].add_assign_mixed(&b_affine);
+        tmp[5].add_assign_ref_mixed(&c_affine);
+        tmp[5].add_assign_ref_mixed(&b_affine);
 
         // Comparisons
         for i in 0..6 {

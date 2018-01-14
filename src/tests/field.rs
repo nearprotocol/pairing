@@ -49,7 +49,7 @@ pub fn random_sqrt_tests<F: SqrtField>() {
 
         assert_eq!(b, c);
 
-        c.add_assign(&F::one());
+        c.add_assign_ref(&F::one());
     }
 }
 
@@ -85,7 +85,7 @@ pub fn random_field_tests<F: Field>() {
     {
         let mut a = F::rand(&mut rng);
         let copy = a;
-        a.add_assign(&F::zero());
+        a.add_assign_ref(&F::zero());
         assert_eq!(a, copy);
     }
 }
@@ -154,16 +154,16 @@ fn random_addition_tests<F: Field, R: Rng>(rng: &mut R) {
         let c = F::rand(rng);
 
         let mut t0 = a; // (a + b) + c
-        t0.add_assign(&b);
-        t0.add_assign(&c);
+        t0.add_assign_ref(&b);
+        t0.add_assign_ref(&c);
 
         let mut t1 = a; // (a + c) + b
-        t1.add_assign(&c);
-        t1.add_assign(&b);
+        t1.add_assign_ref(&c);
+        t1.add_assign_ref(&b);
 
         let mut t2 = b; // (b + c) + a
-        t2.add_assign(&c);
-        t2.add_assign(&a);
+        t2.add_assign_ref(&c);
+        t2.add_assign_ref(&a);
 
         assert_eq!(t0, t1);
         assert_eq!(t1, t2);
@@ -182,7 +182,7 @@ fn random_subtraction_tests<F: Field, R: Rng>(rng: &mut R) {
         t1.sub_assign(&a);
 
         let mut t2 = t0; // (a - b) + (b - a) = 0
-        t2.add_assign(&t1);
+        t2.add_assign_ref(&t1);
 
         assert!(t2.is_zero());
     }
@@ -193,7 +193,7 @@ fn random_negation_tests<F: Field, R: Rng>(rng: &mut R) {
         let a = F::rand(rng);
         let mut b = a;
         b.negate();
-        b.add_assign(&a);
+        b.add_assign_ref(&a);
 
         assert!(b.is_zero());
     }
@@ -203,7 +203,7 @@ fn random_doubling_tests<F: Field, R: Rng>(rng: &mut R) {
     for _ in 0..10000 {
         let mut a = F::rand(rng);
         let mut b = a;
-        a.add_assign(&b);
+        a.add_assign_ref(&b);
         b.double();
 
         assert_eq!(a, b);
@@ -243,9 +243,9 @@ fn random_expansion_tests<F: Field, R: Rng>(rng: &mut R) {
         let d = F::rand(rng);
 
         let mut t0 = a;
-        t0.add_assign(&b);
+        t0.add_assign_ref(&b);
         let mut t1 = c;
-        t1.add_assign(&d);
+        t1.add_assign_ref(&d);
         t0.mul_assign_ref(&t1);
 
         let mut t2 = a;
@@ -257,9 +257,9 @@ fn random_expansion_tests<F: Field, R: Rng>(rng: &mut R) {
         let mut t5 = b;
         t5.mul_assign_ref(&d);
 
-        t2.add_assign(&t3);
-        t2.add_assign(&t4);
-        t2.add_assign(&t5);
+        t2.add_assign_ref(&t3);
+        t2.add_assign_ref(&t4);
+        t2.add_assign_ref(&t5);
 
         assert_eq!(t0, t2);
     }

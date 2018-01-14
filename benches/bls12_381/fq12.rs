@@ -4,7 +4,7 @@ use pairing::Field;
 use pairing::bls12_381::*;
 
 #[bench]
-fn bench_fq12_add_assign(b: &mut ::test::Bencher) {
+fn bench_fq12_add_assign_ref(b: &mut ::test::Bencher) {
     const SAMPLES: usize = 1000;
 
     let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
@@ -16,7 +16,7 @@ fn bench_fq12_add_assign(b: &mut ::test::Bencher) {
     let mut count = 0;
     b.iter(|| {
         let mut tmp = v[count].0;
-        tmp.add_assign(&v[count].1);
+        tmp.add_assign_ref(&v[count].1);
         count = (count + 1) % SAMPLES;
         tmp
     });

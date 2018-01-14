@@ -7,7 +7,7 @@ use byteorder::{BigEndian, ByteOrder, NativeEndian};
 
 use ::{Field, PrimeField, SqrtField, PrimeFieldRepr, PrimeFieldDecodingError};
 use super::fq2::Fq2;
-
+use num_traits::Zero;
 
 // q = 4002409555221667393417789825735904156556882819939007885332058136124031650490837864442687629129015664037894272559787
 const MODULUS: FqRepr = FqRepr([0xb9feffffffffaaab, 0x1eabfffeb153ffff, 0x6730d2a0f6b0f624, 0x64774b84f38512bf, 0x4b1ba7b6434bacd7, 0x1a0111ea397fe69a]);
@@ -493,24 +493,27 @@ impl PrimeField for Fq {
     }
 }
 
-impl Field for Fq {
+
+impl Zero for Fq {
     #[inline]
     fn zero() -> Self {
         Fq(FqRepr::from(0))
     }
 
     #[inline]
+    fn is_zero(&self) -> bool {
+        self.0.is_zero()
+    }
+}
+
+impl Field for Fq {
+    #[inline]
     fn one() -> Self {
         Fq(R)
     }
 
     #[inline]
-    fn is_zero(&self) -> bool {
-        self.0.is_zero()
-    }
-
-    #[inline]
-    fn add_assign(&mut self, other: &Fq) {
+    fn add_assign_ref(&mut self, other: &Fq) {
         // This cannot exceed the backing capacity.
         self.0.add_nocarry(&other.0);
 
@@ -931,13 +934,13 @@ fn test_swenc_consts() {
 
     // c2 = (sqrt(-3) - 1) / 2
     let mut expected = SWENC_CONST1;
-    expected.add_assign(&SWENC_CONST1);
-    expected.add_assign(&Fq::one());
+    expected.add_assign_ref(&SWENC_CONST1);
+    expected.add_assign_ref(&Fq::one());
     assert_eq!(SWENC_CONST0, expected);
 
     // make sure b+1 is not a quadratic residue
     let mut bp1 = Fq::one();
-    bp1.add_assign(&B_COEFF);
+    bp1.add_assign_ref(&B_COEFF);
     assert_eq!(bp1.legendre(), ::LegendreSymbol::QuadraticNonResidue);
 }
 
@@ -1246,30 +1249,30 @@ fn test_fq_is_valid() {
 }
 
 #[test]
-fn test_fq_add_assign() {
+fn test_fq_add_assign_ref() {
     {
         // Random number
         let mut tmp = Fq(FqRepr([0x624434821df92b69, 0x503260c04fd2e2ea, 0xd9df726e0d16e8ce, 0xfbcb39adfd5dfaeb, 0x86b8a22b0c88b112, 0x165a2ed809e4201b]));
         assert!(tmp.is_valid());
         // Test that adding zero has no effect.
-        tmp.add_assign(&Fq(FqRepr::from(0)));
+        tmp.add_assign_ref(&Fq(FqRepr::from(0)));
         assert_eq!(tmp, Fq(FqRepr([0x624434821df92b69, 0x503260c04fd2e2ea, 0xd9df726e0d16e8ce, 0xfbcb39adfd5dfaeb, 0x86b8a22b0c88b112, 0x165a2ed809e4201b])));
         // Add one and test for the result.
-        tmp.add_assign(&Fq(FqRepr::from(1)));
+        tmp.add_assign_ref(&Fq(FqRepr::from(1)));
         assert_eq!(tmp, Fq(FqRepr([0x624434821df92b6a, 0x503260c04fd2e2ea, 0xd9df726e0d16e8ce, 0xfbcb39adfd5dfaeb, 0x86b8a22b0c88b112, 0x165a2ed809e4201b])));
         // Add another random number that exercises the reduction.
-        tmp.add_assign(&Fq(FqRepr([0x374d8f8ea7a648d8, 0xe318bb0ebb8bfa9b, 0x613d996f0a95b400, 0x9fac233cb7e4fef1, 0x67e47552d253c52, 0x5c31b227edf25da])));
+        tmp.add_assign_ref(&Fq(FqRepr([0x374d8f8ea7a648d8, 0xe318bb0ebb8bfa9b, 0x613d996f0a95b400, 0x9fac233cb7e4fef1, 0x67e47552d253c52, 0x5c31b227edf25da])));
         assert_eq!(tmp, Fq(FqRepr([0xdf92c410c59fc997, 0x149f1bd05a0add85, 0xd3ec393c20fba6ab, 0x37001165c1bde71d, 0x421b41c9f662408e, 0x21c38104f435f5b])));
         // Add one to (q - 1) and test for the result.
         tmp = Fq(FqRepr([0xb9feffffffffaaaa, 0x1eabfffeb153ffff, 0x6730d2a0f6b0f624, 0x64774b84f38512bf, 0x4b1ba7b6434bacd7, 0x1a0111ea397fe69a]));
-        tmp.add_assign(&Fq(FqRepr::from(1)));
+        tmp.add_assign_ref(&Fq(FqRepr::from(1)));
         assert!(tmp.0.is_zero());
         // Add a random number to another one such that the result is q - 1
         tmp = Fq(FqRepr([0x531221a410efc95b, 0x72819306027e9717, 0x5ecefb937068b746, 0x97de59cd6feaefd7, 0xdc35c51158644588, 0xb2d176c04f2100]));
-        tmp.add_assign(&Fq(FqRepr([0x66ecde5bef0fe14f, 0xac2a6cf8aed568e8, 0x861d70d86483edd, 0xcc98f1b7839a22e8, 0x6ee5e2a4eae7674e, 0x194e40737930c599])));
+        tmp.add_assign_ref(&Fq(FqRepr([0x66ecde5bef0fe14f, 0xac2a6cf8aed568e8, 0x861d70d86483edd, 0xcc98f1b7839a22e8, 0x6ee5e2a4eae7674e, 0x194e40737930c599])));
         assert_eq!(tmp, Fq(FqRepr([0xb9feffffffffaaaa, 0x1eabfffeb153ffff, 0x6730d2a0f6b0f624, 0x64774b84f38512bf, 0x4b1ba7b6434bacd7, 0x1a0111ea397fe69a])));
         // Add one to the result and test for it.
-        tmp.add_assign(&Fq(FqRepr::from(1)));
+        tmp.add_assign_ref(&Fq(FqRepr::from(1)));
         assert!(tmp.0.is_zero());
     }
 
@@ -1284,12 +1287,12 @@ fn test_fq_add_assign() {
         let c = Fq::rand(&mut rng);
 
         let mut tmp1 = a;
-        tmp1.add_assign(&b);
-        tmp1.add_assign(&c);
+        tmp1.add_assign_ref(&b);
+        tmp1.add_assign_ref(&c);
 
         let mut tmp2 = b;
-        tmp2.add_assign(&c);
-        tmp2.add_assign(&a);
+        tmp2.add_assign_ref(&c);
+        tmp2.add_assign_ref(&a);
 
         assert!(tmp1.is_valid());
         assert!(tmp2.is_valid());
@@ -1333,7 +1336,7 @@ fn test_fq_sub_assign() {
         let mut tmp2 = b;
         tmp2.sub_assign(&a);
 
-        tmp1.add_assign(&tmp2);
+        tmp1.add_assign_ref(&tmp2);
         assert!(tmp1.is_zero());
     }
 }
@@ -1372,16 +1375,16 @@ fn test_fq_mul_assign_ref() {
         let mut c = Fq::rand(&mut rng);
 
         let mut tmp1 = a;
-        tmp1.add_assign(&b);
-        tmp1.add_assign(&c);
+        tmp1.add_assign_ref(&b);
+        tmp1.add_assign_ref(&c);
         tmp1.mul_assign_ref(&r);
 
         a.mul_assign_ref(&r);
         b.mul_assign_ref(&r);
         c.mul_assign_ref(&r);
 
-        a.add_assign(&b);
-        a.add_assign(&c);
+        a.add_assign_ref(&b);
+        a.add_assign_ref(&c);
 
         assert_eq!(tmp1, a);
     }
@@ -1435,7 +1438,7 @@ fn test_fq_double() {
         // Ensure doubling a is equivalent to adding a to itself.
         let mut a = Fq::rand(&mut rng);
         let mut b = a;
-        b.add_assign(&a);
+        b.add_assign_ref(&a);
         a.double();
         assert_eq!(a, b);
     }
@@ -1457,7 +1460,7 @@ fn test_fq_negate() {
         let mut a = Fq::rand(&mut rng);
         let mut b = a;
         b.negate();
-        a.add_assign(&b);
+        a.add_assign_ref(&b);
 
         assert!(a.is_zero());
     }

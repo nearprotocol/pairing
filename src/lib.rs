@@ -20,8 +20,9 @@
 extern crate test;
 
 extern crate alga;
-extern crate rand;
 extern crate byteorder;
+extern crate num_traits;
+extern crate rand;
 
 #[cfg(test)]
 pub mod tests;
@@ -33,7 +34,8 @@ use std::fmt;
 use std::error::Error;
 use std::io::{self, Read, Write};
 
-use alga::general::ClosedMul;
+use alga::general::{ClosedMul, ClosedAdd};
+use num_traits::Zero;
 
 /// An "engine" is a collection of types (fields, elliptic curve groups, etc.)
 /// with well-defined relationships. In particular, the G1/G2 curve groups are
@@ -128,17 +130,17 @@ pub trait CurveProjective: PartialEq +
     fn double(&mut self);
 
     /// Adds another element to this element.
-    fn add_assign(&mut self, other: &Self);
+    fn add_assign_ref(&mut self, other: &Self);
 
     /// Subtracts another element from this element.
     fn sub_assign(&mut self, other: &Self) {
         let mut tmp = *other;
         tmp.negate();
-        self.add_assign(&tmp);
+        self.add_assign_ref(&tmp);
     }
 
     /// Adds an affine element to this element.
-    fn add_assign_mixed(&mut self, other: &Self::Affine);
+    fn add_assign_ref_mixed(&mut self, other: &Self::Affine);
 
     /// Negates this element.
     fn negate(&mut self);
@@ -264,6 +266,8 @@ pub trait EncodedPoint: Sized +
 /// This trait represents an element of a field.
 pub trait Field: Sized +
                  Eq +
+                 Zero +
+                 ClosedAdd +
                  ClosedMul +
                  Copy +
                  Clone +
@@ -274,14 +278,8 @@ pub trait Field: Sized +
                  'static +
                  rand::Rand
 {
-    /// Returns the zero element of the field, the additive identity.
-    fn zero() -> Self;
-
     /// Returns the one element of the field, the multiplicative identity.
     fn one() -> Self;
-
-    /// Returns true iff this element is zero.
-    fn is_zero(&self) -> bool;
 
     /// Squares this element.
     fn square(&mut self);
@@ -293,7 +291,7 @@ pub trait Field: Sized +
     fn negate(&mut self);
 
     /// Adds another element to this element.
-    fn add_assign(&mut self, other: &Self);
+    fn add_assign_ref(&mut self, other: &Self);
 
     /// Subtracts another element from this element.
     fn sub_assign(&mut self, other: &Self);
@@ -335,7 +333,23 @@ pub trait Field: Sized +
 #[macro_export]
 macro_rules! field_operations {
     ($t:ident) => {
-        use std::ops::{MulAssign, Mul};
+        use std::ops::{Add, AddAssign, Mul, MulAssign};
+
+        impl AddAssign for $t {
+            fn add_assign(&mut self, other: $t) {
+                self.add_assign_ref(&other);
+            }
+        }
+
+        impl Add for $t {
+            type Output = $t;
+
+            fn add(self, other: $t) -> $t {
+                let mut ret = self.clone();
+                ret.add_assign_ref(&other);
+                ret
+            }
+        }
 
         impl MulAssign for $t {
             fn mul_assign(&mut self, other: $t) {
@@ -553,7 +567,7 @@ pub trait PrimeField: Field
                     }
 
                     res.mul_assign_ref(&ten);
-                    res.add_assign(&Self::from_repr(Self::Repr::from(u64::from(c))).unwrap());
+                    res.add_assign_ref(&Self::from_repr(Self::Repr::from(u64::from(c))).unwrap());
                 },
                 None => {
                     return None;
