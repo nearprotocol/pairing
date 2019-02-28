@@ -1557,6 +1557,12 @@ pub mod g2 {
             }
         }
 
+
+        fn frobenius_map(&mut self, power: usize) {
+            self.x.frobenius_map(power);
+            self.y.frobenius_map(power);
+        }
+
         fn scale_by_cofactor(&self) -> G2 {
             // G2 cofactor = (x^8 - 4 x^7 + 5 x^6) - (4 x^4 + 6 x^3 - 4 x^2 - 4 x + 13) // 9
             // 0x5d543a95414e7f1091d50792876a202cd91de4547085abaa68a205b2e5a7ddfa628f1cb4d9e82ef21537e293a6691ae1616ec6e786f0c70cf1c38e31c7238e5
@@ -2011,6 +2017,15 @@ pub mod g2 {
             }
         );
     }
+
+    #[test]
+    fn test_g2_frobenius_map() {
+        let mut g = G2Affine::get_generator();
+        g.frobenius_map(1);
+        assert!(g.is_on_curve());
+        //assert!(g.is_in_correct_subgroup_assuming_on_curve());
+    }
+
 
     #[test]
     fn g2_curve_tests() {
