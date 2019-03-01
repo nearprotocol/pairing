@@ -140,10 +140,6 @@ macro_rules! curve_impl {
                 }
             }
 
-            fn is_in_correct_subgroup_assuming_on_curve(&self) -> bool {
-                self.mul($scalarfield::char()).is_zero()
-            }
-
             /// Implements the Shallue–van de Woestijne encoding described in
             /// Section 3, "Indifferentiable Hashing to Barreto–Naehrig Curves"
             /// from Foque-Tibouchi: <https://www.di.ens.fr/~fouque/pub/latincrypt12.pdf>.
@@ -261,6 +257,10 @@ macro_rules! curve_impl {
 
             fn is_zero(&self) -> bool {
                 self.infinity
+            }
+
+            fn is_in_correct_subgroup_assuming_on_curve(&self) -> bool {
+                self.mul($scalarfield::char()).is_zero()
             }
 
             fn mul<S: Into<<Self::Scalar as PrimeField>::Repr>>(&self, by: S) -> $projective {
@@ -833,6 +833,15 @@ pub mod g1 {
                 Ok(affine)
             }
         }
+        fn into_affine_semi_checked(&self) -> Result<G1Affine, GroupDecodingError> {
+            let affine = self.into_affine_unchecked()?;
+
+            if !affine.is_on_curve() {
+                Err(GroupDecodingError::NotOnCurve)
+            } else {
+                Ok(affine)
+            }
+        }
         fn into_affine_unchecked(&self) -> Result<G1Affine, GroupDecodingError> {
             // Create a copy of this representation.
             let mut copy = self.0;
@@ -942,6 +951,10 @@ pub mod g1 {
             } else {
                 Ok(affine)
             }
+        }
+        fn into_affine_semi_checked(&self) -> Result<G1Affine, GroupDecodingError> {
+            // NB: Decompression guarantees that it is on the curve already.
+            self.into_affine_unchecked()
         }
         fn into_affine_unchecked(&self) -> Result<G1Affine, GroupDecodingError> {
             // Create a copy of this representation.
@@ -1529,6 +1542,15 @@ pub mod g2 {
                 Ok(affine)
             }
         }
+        fn into_affine_semi_checked(&self) -> Result<G2Affine, GroupDecodingError> {
+            let affine = self.into_affine_unchecked()?;
+
+            if !affine.is_on_curve() {
+                Err(GroupDecodingError::NotOnCurve)
+            } else {
+                Ok(affine)
+            }
+        }
         fn into_affine_unchecked(&self) -> Result<G2Affine, GroupDecodingError> {
             // Create a copy of this representation.
             let mut copy = self.0;
@@ -1654,6 +1676,10 @@ pub mod g2 {
             } else {
                 Ok(affine)
             }
+        }
+        fn into_affine_semi_checked(&self) -> Result<G2Affine, GroupDecodingError> {
+            // NB: Decompression guarantees that it is on the curve already.
+            self.into_affine_unchecked()
         }
         fn into_affine_unchecked(&self) -> Result<G2Affine, GroupDecodingError> {
             // Create a copy of this representation.
