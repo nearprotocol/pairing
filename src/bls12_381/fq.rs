@@ -1,4 +1,4 @@
-use {BitIterator, Field, PrimeField, PrimeFieldDecodingError, PrimeFieldRepr, SqrtField};
+use {BitIterator, Field, PrimeField, PrimeFieldDecodingError, PrimeFieldRepr, Rand, SqrtField};
 use super::fq2::Fq2;
 
 use blake2_rfc::blake2b::Blake2b;
@@ -538,10 +538,16 @@ pub const NEGATIVE_ONE: Fq = Fq(FqRepr([
 #[derive(Copy, Clone, PartialEq, Eq, Default, Debug)]
 pub struct FqRepr(pub [u64; 6]);
 
-impl ::rand::Rand for FqRepr {
+impl Rand for FqRepr {
     #[inline(always)]
-    fn rand<R: ::rand::Rng>(rng: &mut R) -> Self {
+    fn rand<R: ::rand::Rng + ?Sized>(rng: &mut R) -> Self {
         FqRepr(rng.gen())
+    }
+}
+
+impl ::rand::distributions::Distribution<FqRepr> for ::rand::distributions::Standard {
+    fn sample<R: ::rand::Rng + ?Sized>(&self, rng: &mut R) -> FqRepr {
+        FqRepr::rand(rng)
     }
 }
 
@@ -748,8 +754,8 @@ impl ::std::fmt::Display for Fq {
     }
 }
 
-impl ::rand::Rand for Fq {
-    fn rand<R: ::rand::Rng>(rng: &mut R) -> Self {
+impl Rand for Fq {
+    fn rand<R: ::rand::Rng + ?Sized>(rng: &mut R) -> Self {
         loop {
             let mut tmp = Fq(FqRepr::rand(rng));
 
@@ -760,6 +766,12 @@ impl ::rand::Rand for Fq {
                 return tmp;
             }
         }
+    }
+}
+
+impl ::rand::distributions::Distribution<Fq> for ::rand::distributions::Standard {
+    fn sample<R: ::rand::Rng + ?Sized>(&self, rng: &mut R) -> Fq {
+        Fq::rand(rng)
     }
 }
 
@@ -1238,7 +1250,10 @@ impl SqrtField for Fq {
 }
 
 #[cfg(test)]
-use rand::{Rand, Rng, SeedableRng, XorShiftRng};
+use rand::{Rng, SeedableRng};
+
+#[cfg(test)]
+use rand_xorshift::{XorShiftRng};
 
 #[test]
 fn test_hash() {
@@ -1247,7 +1262,7 @@ fn test_hash() {
     hasher.update(&[0x42; 32]);
     assert!(Fq::hash(hasher).is_valid());
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(0x5dbe62598d313d76);
     let mut lsb_ones: i32 = 0;
     for _ in 0..1000 {
         let seed = rng.gen::<[u8; 32]>();
@@ -2229,7 +2244,7 @@ fn test_fq_repr_num_bits() {
 
 #[test]
 fn test_fq_repr_sub_noborrow() {
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(0x5dbe62598d313d76);
 
     let mut t = FqRepr([
         0x827a4a08041ebd9,
@@ -2316,7 +2331,7 @@ fn test_fq_repr_sub_noborrow() {
 
 #[test]
 fn test_fq_repr_add_nocarry() {
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(0x5dbe62598d313d76);
 
     let mut t = FqRepr([
         0x827a4a08041ebd9,
@@ -2426,7 +2441,7 @@ fn test_fq_is_valid() {
         0xffffffffffffffff
     ])).is_valid());
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(0x5dbe62598d313d76);
 
     for _ in 0..1000 {
         let a = Fq::rand(&mut rng);
@@ -2539,7 +2554,7 @@ fn test_fq_add_assign() {
 
     // Test associativity
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(0x5dbe62598d313d76);
 
     for _ in 0..1000 {
         // Generate a, b, c and ensure (a + b) + c == a + (b + c).
@@ -2649,7 +2664,7 @@ fn test_fq_sub_assign() {
         );
     }
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(0x5dbe62598d313d76);
 
     for _ in 0..1000 {
         // Ensure that (a - b) + (b - a) = 0.
@@ -2696,7 +2711,7 @@ fn test_fq_mul_assign() {
         ]))
     );
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(0x5dbe62598d313d76);
 
     for _ in 0..1000000 {
         // Ensure that (a * b) * c = a * (b * c)
@@ -2763,7 +2778,7 @@ fn test_fq_squaring() {
         ])).unwrap()
     );
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(0x5dbe62598d313d76);
 
     for _ in 0..1000000 {
         // Ensure that (a * a) = a^2
@@ -2783,7 +2798,7 @@ fn test_fq_squaring() {
 fn test_fq_inverse() {
     assert!(Fq::zero().inverse().is_none());
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(0x5dbe62598d313d76);
 
     let one = Fq::one();
 
@@ -2798,7 +2813,7 @@ fn test_fq_inverse() {
 
 #[test]
 fn test_fq_double() {
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(0x5dbe62598d313d76);
 
     for _ in 0..1000 {
         // Ensure doubling a is equivalent to adding a to itself.
@@ -2819,7 +2834,7 @@ fn test_fq_negate() {
         assert!(a.is_zero());
     }
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(0x5dbe62598d313d76);
 
     for _ in 0..1000 {
         // Ensure (a - (-a)) = 0.
@@ -2834,7 +2849,7 @@ fn test_fq_negate() {
 
 #[test]
 fn test_fq_pow() {
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(0x5dbe62598d313d76);
 
     for i in 0..1000 {
         // Exponentiate by various small numbers and ensure it consists with repeated
@@ -2858,7 +2873,7 @@ fn test_fq_pow() {
 
 #[test]
 fn test_fq_sqrt() {
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(0x5dbe62598d313d76);
 
     assert_eq!(Fq::zero().sqrt().unwrap(), Fq::zero());
 
@@ -2937,7 +2952,7 @@ fn test_fq_from_into_repr() {
     // Zero should be in the field.
     assert!(Fq::from_repr(FqRepr::from(0)).unwrap().is_zero());
 
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(0x5dbe62598d313d76);
 
     for _ in 0..1000 {
         // Try to turn Fq elements into representations and back again, and compare.

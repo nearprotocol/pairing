@@ -1,7 +1,7 @@
 use blake2_rfc::blake2b::Blake2b;
 
-use rand::{Rand, Rng};
-use {Field, SqrtField};
+use rand::{Rng};
+use {Field, Rand, SqrtField};
 use super::fq::{FROBENIUS_COEFF_FQ2_C1, Fq, NEGATIVE_ONE};
 
 use std::cmp::Ordering;
@@ -90,11 +90,17 @@ impl Fq2 {
 }
 
 impl Rand for Fq2 {
-    fn rand<R: Rng>(rng: &mut R) -> Self {
+    fn rand<R: Rng + ?Sized>(rng: &mut R) -> Self {
         Fq2 {
             c0: rng.gen(),
             c1: rng.gen(),
         }
+    }
+}
+
+impl ::rand::distributions::Distribution<Fq2> for ::rand::distributions::Standard {
+    fn sample<R: ::rand::Rng + ?Sized>(&self, rng: &mut R) -> Fq2 {
+        Fq2::rand(rng)
     }
 }
 
@@ -910,11 +916,14 @@ fn test_fq2_legendre() {
 }
 
 #[cfg(test)]
-use rand::{SeedableRng, XorShiftRng};
+use rand::{SeedableRng};
+
+#[cfg(test)]
+use rand_xorshift::{XorShiftRng};
 
 #[test]
 fn test_fq2_mul_nonresidue() {
-    let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+    let mut rng = XorShiftRng::seed_from_u64(0x5dbe62598d313d76);
 
     let nqr = Fq2 {
         c0: Fq::one(),

@@ -288,7 +288,7 @@ macro_rules! curve_impl {
         }
 
         impl Rand for $projective {
-            fn rand<R: Rng>(rng: &mut R) -> Self {
+            fn rand<R: Rng + ?Sized>(rng: &mut R) -> Self {
                 loop {
                     let x = rng.gen();
                     let greatest = rng.gen();
@@ -301,6 +301,12 @@ macro_rules! curve_impl {
                         }
                     }
                 }
+            }
+        }
+
+        impl ::rand::distributions::Distribution<$projective> for ::rand::distributions::Standard {
+            fn sample<R: ::rand::Rng + ?Sized>(&self, rng: &mut R) -> $projective {
+                $projective::rand(rng)
             }
         }
 
@@ -737,11 +743,14 @@ macro_rules! curve_impl {
         }
 
         #[cfg(test)]
-        use rand::{SeedableRng, XorShiftRng};
+        use rand::{SeedableRng};
+
+        #[cfg(test)]
+        use rand_xorshift::{XorShiftRng};
 
         #[test]
         fn test_hash() {
-            let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+            let mut rng = XorShiftRng::seed_from_u64(0x5dbe62598d313d76);
 
             for _ in 0..100 {
                 let seed : [u8; 32] = rng.gen();
@@ -754,7 +763,7 @@ macro_rules! curve_impl {
 
         #[test]
         fn test_sw_encode() {
-            let mut rng = XorShiftRng::from_seed([0x5dbe6259, 0x8d313d76, 0x3237db17, 0xe5bc0654]);
+            let mut rng = XorShiftRng::seed_from_u64(0x5dbe62598d313d76);
 
             for _ in 0..100 {
                 let mut t = $basefield::rand(&mut rng);
@@ -773,12 +782,12 @@ macro_rules! curve_impl {
 
 pub mod g1 {
     use blake2_rfc::blake2b::Blake2b;
-    use rand::{Rand, Rng};
+    use rand::{Rng};
     use std::fmt;
     use super::g2::G2Affine;
     use super::super::{Bls12, Fq, Fq12, FqRepr, Fr, FrRepr};
     use {BitIterator, CurveAffine, CurveProjective, EncodedPoint, Engine, Field,
-         GroupDecodingError, PrimeField, PrimeFieldRepr, SqrtField};
+         GroupDecodingError, PrimeField, PrimeFieldRepr, Rand, SqrtField};
 
     curve_impl!(
         "G1",
@@ -1469,12 +1478,12 @@ pub mod g1 {
 
 pub mod g2 {
     use blake2_rfc::blake2b::Blake2b;
-    use rand::{Rand, Rng};
+    use rand::{Rng};
     use std::fmt;
     use super::super::{Bls12, Fq, Fq12, Fq2, FqRepr, Fr, FrRepr};
     use super::g1::G1Affine;
     use {BitIterator, CurveAffine, CurveProjective, EncodedPoint, Engine, Field,
-         GroupDecodingError, PrimeField, PrimeFieldRepr, SqrtField};
+         GroupDecodingError, PrimeField, PrimeFieldRepr, Rand, SqrtField};
 
     curve_impl!(
         "G2",
