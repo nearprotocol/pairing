@@ -18,6 +18,9 @@ extern crate byteorder;
 extern crate rand;
 
 #[cfg(test)]
+extern crate rand_xorshift;
+
+#[cfg(test)]
 pub mod tests;
 
 pub mod bls12_381;
@@ -28,6 +31,13 @@ pub use self::wnaf::Wnaf;
 use std::fmt;
 use std::error::Error;
 use std::io::{self, Read, Write};
+use rand::Rng;
+
+pub trait Rand : Sized {
+    /// Generates a random instance of this type using the specified source of
+    /// randomness.
+    fn rand<R: Rng + ?Sized>(rng: &mut R) -> Self;
+}
 
 /// An "engine" is a collection of types (fields, elliptic curve groups, etc.)
 /// with well-defined relationships. In particular, the G1/G2 curve groups are
@@ -122,7 +132,7 @@ pub trait CurveProjective:
     + Sync
     + fmt::Debug
     + fmt::Display
-    + rand::Rand
+    + Rand
     + 'static
 {
     type Engine: Engine<Fr = Self::Scalar>;
@@ -269,7 +279,7 @@ pub trait EncodedPoint:
 
 /// This trait represents an element of a field.
 pub trait Field:
-    Sized + Eq + Copy + Clone + Send + Sync + fmt::Debug + fmt::Display + 'static + rand::Rand
+    Sized + Eq + Copy + Clone + Send + Sync + fmt::Debug + fmt::Display + 'static + Rand
 {
     /// Returns the zero element of the field, the additive identity.
     fn zero() -> Self;
@@ -353,7 +363,7 @@ pub trait PrimeFieldRepr:
     + fmt::Debug
     + fmt::Display
     + 'static
-    + rand::Rand
+    + Rand
     + AsRef<[u64]>
     + AsMut<[u64]>
     + From<u64>
