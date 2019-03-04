@@ -219,6 +219,10 @@ pub trait CurveAffine:
     /// additive identity.
     fn is_zero(&self) -> bool;
 
+    /// Determines if this point is in the correct subgroup, assuming
+    /// that it is on the curve.
+    fn is_in_correct_subgroup_assuming_on_curve(&self) -> bool;
+
     /// Negates this element.
     fn negate(&mut self);
 
@@ -271,6 +275,11 @@ pub trait EncodedPoint:
     /// If the encoding is invalid, this can break API invariants,
     /// so caution is strongly encouraged.
     fn into_affine_unchecked(&self) -> Result<Self::Affine, GroupDecodingError>;
+
+    /// Converts an `EncodedPoint` into a `CurveAffine` element.
+    /// Verifies that the point is on the curve, but skips the far
+    /// more expensive check that the point is in the correct subgroup.
+    fn into_affine_semi_checked(&self) -> Result<Self::Affine, GroupDecodingError>;
 
     /// Creates an `EncodedPoint` from an affine point, as long as the
     /// point is not the point at infinity.
